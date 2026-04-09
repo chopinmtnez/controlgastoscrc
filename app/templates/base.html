@@ -43,8 +43,11 @@
   <div class="main">
     <div class="topbar">
       <div>
-        <div class="topbar-title">{% block topbar_title %}ControlGastosCRC{% endblock %}</div>
-        <div class="topbar-sub">{% block topbar_sub %}{% endblock %}</div>
+        <button class="hamburger" id="menu-btn" aria-label="Menú">☰</button>
+        <div>
+          <div class="topbar-title">{% block topbar_title %}ControlGastosCRC{% endblock %}</div>
+          <div class="topbar-sub">{% block topbar_sub %}{% endblock %}</div>
+        </div>
       </div>
       <div>{% block topbar_action %}{% endblock %}</div>
     </div>
@@ -53,5 +56,30 @@
     </div>
   </div>
 </div>
+
+<!-- Fondo oscuro para cerrar el sidebar en móvil -->
+<div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+<script>
+  (function () {
+    var btn      = document.getElementById('menu-btn');
+    var sidebar  = document.querySelector('.sidebar');
+    var backdrop = document.getElementById('sidebar-backdrop');
+    if (!btn) return;
+
+    function open()  { sidebar.classList.add('open');  backdrop.classList.add('open'); }
+    function close() { sidebar.classList.remove('open'); backdrop.classList.remove('open'); }
+
+    btn.addEventListener('click', function () {
+      sidebar.classList.contains('open') ? close() : open();
+    });
+    backdrop.addEventListener('click', close);
+
+    // Cerrar al navegar (clic en enlace del sidebar)
+    sidebar.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', close);
+    });
+  })();
+</script>
 </body>
 </html>

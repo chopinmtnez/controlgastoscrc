@@ -140,3 +140,91 @@ input:focus, select:focus { border-color: var(--indigo); }
 .login-body { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--bg); }
 .login-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; width: 360px; }
 .login-logo { margin-bottom: 28px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
+
+/* ============================================================
+   RESPONSIVE — iPhone / móvil (≤ 768 px)
+   ============================================================ */
+
+/* Botón hamburguesa: oculto en escritorio */
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px 8px;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+/* Fondo oscuro que aparece detrás del sidebar en móvil */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 199;
+}
+
+@media (max-width: 768px) {
+
+  /* ---- Layout ---- */
+  .app { overflow: visible; }
+
+  .sidebar {
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    z-index: 200;
+    transform: translateX(-100%);
+    transition: transform .25s ease;
+    width: 220px;
+    overflow-y: auto;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-backdrop.open { display: block; }
+
+  .main { width: 100%; min-width: 0; }
+
+  /* ---- Topbar ---- */
+  .hamburger { display: flex; }
+  .topbar { padding: 10px 14px; gap: 10px; flex-wrap: nowrap; }
+  .topbar > div:first-child { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; }
+  .topbar-title { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .topbar-sub { display: none; }
+  .topbar > div:last-child { flex-shrink: 0; }
+  .topbar > div:last-child .btn { font-size: 12px; padding: 6px 10px; white-space: nowrap; }
+
+  /* ---- Content ---- */
+  .content { padding: 12px; }
+
+  /* ---- KPIs ---- */
+  .kpi-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }
+  .kpi { padding: 12px; }
+  .kpi-value { font-size: 18px; }
+  .kpi-label { font-size: 10px; }
+
+  /* ---- Tablas: scroll horizontal ---- */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { min-width: 480px; font-size: 12px; }
+  th, td { padding: 8px 10px; }
+
+  /* ---- Grids de 2 columnas → 1 columna ---- */
+  .two-col-grid { grid-template-columns: 1fr !important; }
+
+  /* ---- Formularios ---- */
+  .form-row { grid-template-columns: 1fr; }
+
+  /* ---- Login ---- */
+  .login-card { width: 92vw; padding: 24px 20px; }
+
+  /* ---- Página de subida ---- */
+  #drop-zone { padding: 40px 16px; }
+
+  /* ---- Vista previa de facturas ---- */
+  .factura-preview-header { flex-direction: column; align-items: flex-start !important; gap: 6px; }
+  .factura-preview-total { text-align: left !important; }
+}

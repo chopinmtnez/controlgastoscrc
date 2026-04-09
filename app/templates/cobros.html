@@ -4,12 +4,12 @@
 {% block topbar_sub %}{{ cobros|length }} cobro(s) registrado(s){% endblock %}
 
 {% block content %}
-<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+<div class="two-col-grid" style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
 
   <!-- Lista -->
   <div class="card">
     <div class="card-header"><div class="card-title">Cobros registrados</div></div>
-    <table>
+    <div class="table-scroll"><table>
       <thead>
         <tr>
           <th>Fecha</th>
@@ -39,7 +39,7 @@
         <tr><td colspan="5" class="text-center text-muted" style="padding:24px">Sin cobros registrados</td></tr>
         {% endfor %}
       </tbody>
-    </table>
+    </table></div>
   </div>
 
   <!-- Formulario añadir -->

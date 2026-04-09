@@ -132,6 +132,9 @@ async def facturas_confirmar(request: Request, db: Session = Depends(get_db)):
         # Re-parsear para obtener líneas
         parsed = parse_pdf(dest)
 
+        # El input type="month" envía "YYYY-MM"; añadimos el día para fromisoformat
+        if len(mes_referencia) == 7:
+            mes_referencia = mes_referencia + "-01"
         mes_ref = date.fromisoformat(mes_referencia)
         factura = Factura(
             numero_documento=numero_documento,

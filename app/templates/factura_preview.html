@@ -1,0 +1,103 @@
+{% set ok_count = resultados | selectattr('ok') | list | length %}
+{% set dup_count = resultados | selectattr('duplicado', 'defined') | selectattr('duplicado') | list | length %}
+{% set err_count = resultados | rejectattr('ok') | list | length %}
+
+<div style="padding:16px">
+  <!-- Resumen -->
+  <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+    <span style="background:rgba(34,197,94,.15);color:#22c55e;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600">
+      ✓ {{ ok_count - dup_count }} listos para guardar
+    </span>
+    {% if dup_count %}
+    <span style="background:rgba(251,191,36,.15);color:#fbbf24;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600">
+      ⚠ {{ dup_count }} duplicado(s) — se omitirán
+    </span>
+    {% endif %}
+    {% if err_count %}
+    <span style="background:rgba(248,113,113,.15);color:#f87171;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600">
+      ✕ {{ err_count }} error(es)
+    </span>
+    {% endif %}
+  </div>
+
+  <form method="post" action="/facturas/confirmar">
+    {% for r in resultados %}
+    {% set i = loop.index0 %}
+
+    {% if not r.ok %}
+    <!-- Error -->
+    <div style="border:1px solid rgba(248,113,113,.3);border-radius:8px;padding:12px;margin-bottom:10px;background:rgba(248,113,113,.05)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:#f87171;font-weight:600">✕ Error — {{ r.filename }}</span>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:4px">{{ r.error }}</div>
+    </div>
+
+    {% elif r.duplicado %}
+    <!-- Duplicado -->
+    <div style="border:1px solid rgba(251,191,36,.3);border-radius:8px;padding:12px;margin-bottom:10px;background:rgba(251,191,36,.04);opacity:.7">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:#fbbf24;font-weight:600">⚠ Duplicado — {{ r.parsed.numero_documento }}</span>
+        <span style="font-size:11px;color:#94a3b8">Se omitirá</span>
+      </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px">{{ r.filename }}</div>
+      <!-- Limpiar tmp -->
+      <input type="hidden" name="skip_{{ i }}" value="1">
+    </div>
+
+    {% else %}
+    <!-- OK -->
+    <div style="border:1px solid rgba(51,65,85,.8);border-radius:8px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <span style="font-size:12px;font-weight:600;color:#e2e8f0">
+          <span class="doc-type doc-{{ r.parsed.tipo|lower }}">{{ r.parsed.tipo }}</span>
+          &nbsp;{{ r.parsed.numero_documento }} — {{ r.filename }}
+        </span>
+        <span style="font-size:13px;font-weight:700;color:{% if r.parsed.total < 0 %}#f87171{% else %}#22c55e{% endif %}">
+          {{ "%.2f"|format(r.parsed.total) }} €
+        </span>
+      </div>
+
+      <!-- Campos ocultos con los datos -->
+      <input type="hidden" name="tmp_{{ i }}" value="{{ r.tmp_path }}">
+      <input type="hidden" name="numero_{{ i }}" value="{{ r.parsed.numero_documento }}">
+      <input type="hidden" name="tipo_{{ i }}" value="{{ r.parsed.tipo }}">
+      <input type="hidden" name="fecha_emision_{{ i }}" value="{{ r.parsed.fecha_emision.isoformat() }}">
+      <input type="hidden" name="fecha_vencimiento_{{ i }}" value="{{ r.parsed.fecha_vencimiento.isoformat() if r.parsed.fecha_vencimiento else '' }}">
+
+      <!-- Mes referencia editable -->
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:160px">
+          <label style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;display:block;margin-bottom:3px">Mes referencia</label>
+          <input type="month" name="mes_referencia_{{ i }}"
+                 value="{{ r.parsed.fecha_emision.strftime('%Y-%m') }}"
+                 style="width:100%;background:#0f172a;border:1px solid #334155;border-radius:6px;padding:6px 8px;color:#e2e8f0;font-size:12px"
+                 required>
+        </div>
+        {% if r.parsed.lineas %}
+        <div style="font-size:11px;color:#64748b;padding-top:16px">
+          {{ r.parsed.lineas|length }} concepto(s):
+          {% for l in r.parsed.lineas[:3] %}{{ l.descripcion }}{% if not loop.last %}, {% endif %}{% endfor %}
+          {% if r.parsed.lineas|length > 3 %}...{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% endfor %}
+
+    {% if ok_count - dup_count > 0 %}
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+      <button type="button" onclick="document.getElementById('upload-modal').style.display='none'" class="btn btn-ghost">Cancelar</button>
+      <button type="submit" class="btn btn-primary">
+        ✓ Guardar {{ ok_count - dup_count }} factura(s)
+      </button>
+    </div>
+    {% else %}
+    <div style="text-align:center;margin-top:16px">
+      <button type="button" onclick="document.getElementById('upload-modal').style.display='none'" class="btn btn-ghost">Cerrar</button>
+    </div>
+    {% endif %}
+  </form>
+</div>

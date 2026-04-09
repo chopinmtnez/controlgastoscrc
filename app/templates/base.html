@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ControlGastosCRC{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js"></script>
+</head>
+<body>
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-title">ControlGastos<br>CRC</div>
+      <div class="logo-sub">Lucía · Curso 25/26</div>
+    </div>
+    <nav>
+      <a href="/" class="nav-item {% if page == 'dashboard' %}active{% endif %}">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <div class="nav-section">Gestión</div>
+      <a href="/facturas" class="nav-item {% if page == 'facturas' %}active{% endif %}">
+        <span class="nav-icon">📄</span> Facturas
+      </a>
+      <a href="/cobros" class="nav-item {% if page == 'cobros' %}active{% endif %}">
+        <span class="nav-icon">🏦</span> Cobros
+      </a>
+      <a href="/documentos" class="nav-item {% if page == 'documentos' %}active{% endif %}">
+        <span class="nav-icon">📁</span> Documentos
+      </a>
+      <div class="nav-section">Configuración</div>
+      <a href="/beca" class="nav-item {% if page == 'beca' %}active{% endif %}">
+        <span class="nav-icon">🎓</span> Beca
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/logout" class="logout">↩ Cerrar sesión</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <div class="topbar-title">{% block topbar_title %}ControlGastosCRC{% endblock %}</div>
+        <div class="topbar-sub">{% block topbar_sub %}{% endblock %}</div>
+      </div>
+      <div>{% block topbar_action %}{% endblock %}</div>
+    </div>
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+</body>
+</html>

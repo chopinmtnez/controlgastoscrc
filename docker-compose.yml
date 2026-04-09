@@ -1,0 +1,35 @@
+services:
+  cgcrc-app:
+    build: ./app
+    container_name: cgcrc-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8020:8000"
+    env_file: .app.env
+    volumes:
+      - ./pdfs:/pdfs
+    depends_on:
+      cgcrc-db:
+        condition: service_healthy
+
+  cgcrc-db:
+    image: postgres:16-alpine
+    container_name: cgcrc-db
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_DB: cgcrc
+      POSTGRES_USER: cgcrc
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - cgcrc-db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:15433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cgcrc"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  cgcrc-db-data:

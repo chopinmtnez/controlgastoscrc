@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Beca · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Configuración de la beca{% endblock %}
+
+{% block content %}
+{% for beca in becas %}
+<div class="card" style="max-width:560px;margin-bottom:20px">
+  <div class="card-header">
+    <div class="card-title">{{ beca.descripcion }}</div>
+    <span class="badge {% if beca.activa %}badge-ok{% else %}badge-empty{% endif %}">
+      {% if beca.activa %}Activa{% else %}Inactiva{% endif %}
+    </span>
+  </div>
+  <div style="padding:16px">
+    <form method="post" action="/beca/{{ beca.id }}/edit">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Descripción</label>
+          <input type="text" name="descripcion" value="{{ beca.descripcion }}" required>
+        </div>
+        <div class="form-group">
+          <label>Importe mensual (€)</label>
+          <input type="number" name="importe_mensual" step="0.01" value="{{ beca.importe_mensual }}" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Desde</label>
+          <input type="date" name="fecha_inicio" value="{{ beca.fecha_inicio.isoformat() }}" required>
+        </div>
+        <div class="form-group">
+          <label>Hasta</label>
+          <input type="date" name="fecha_fin" value="{{ beca.fecha_fin.isoformat() }}" required>
+        </div>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" name="activa" id="activa_{{ beca.id }}" {% if beca.activa %}checked{% endif %}>
+        <label for="activa_{{ beca.id }}" style="margin:0">Activa</label>
+      </div>
+      <button type="submit" class="btn btn-primary">Guardar cambios</button>
+    </form>
+  </div>
+</div>
+{% else %}
+<div class="card" style="max-width:560px">
+  <div style="padding:24px;text-align:center;color:#64748b">
+    Sin becas configuradas. Contacta con el administrador para configurar los datos iniciales.
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

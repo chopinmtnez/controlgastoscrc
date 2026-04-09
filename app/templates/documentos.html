@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Documentos · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Documentos PDF{% endblock %}
+{% block topbar_sub %}{{ facturas|length }} archivo(s){% endblock %}
+{% block topbar_action %}
+  <a href="/documentos/zip" class="btn btn-primary">⬇ Descargar todos (ZIP)</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Nº Documento</th>
+        <th>Fecha emisión</th>
+        <th>Mes ref.</th>
+        <th class="text-right">Total</th>
+        <th class="text-center">Descarga</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in facturas %}
+      <tr>
+        <td><span class="doc-type doc-{{ f.tipo.value|lower }}">{{ f.tipo.value }}</span></td>
+        <td>{{ f.numero_documento }}</td>
+        <td>{{ f.fecha_emision.strftime('%d/%m/%Y') }}</td>
+        <td>{{ f.mes_referencia.strftime('%b-%y') }}</td>
+        <td class="text-right {% if f.total < 0 %}text-danger{% endif %}">{{ "%.2f"|format(f.total) }} €</td>
+        <td class="text-center">
+          <a href="/documentos/{{ f.id }}/pdf" class="btn btn-ghost" style="font-size:12px;padding:4px 10px" target="_blank">⬇ PDF</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted" style="padding:24px">Sin documentos subidos aún</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

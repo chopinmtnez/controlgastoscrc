@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Subir facturas · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Subir facturas PDF{% endblock %}
+{% block topbar_sub %}Selecciona uno o varios PDFs{% endblock %}
+{% block topbar_action %}<a href="/" class="btn btn-ghost">← Volver al dashboard</a>{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;margin:0 auto">
+
+  <form id="upload-form" action="/facturas/upload" method="post" enctype="multipart/form-data">
+
+    <!-- Input completamente oculto (display:none, NO superpuesto) -->
+    <input type="file" name="pdfs" id="file-input" accept=".pdf" multiple style="display:none">
+
+    <!-- Zona de drop: sin input encima para que reciba los eventos correctamente -->
+    <label for="file-input" id="drop-zone"
+           style="display:block;border:2px dashed #334155;border-radius:12px;padding:60px 32px;
+                  text-align:center;cursor:pointer;transition:all .2s;background:rgba(15,23,42,.6)">
+      <div style="font-size:48px;margin-bottom:16px;pointer-events:none">☁️</div>
+      <div style="font-size:15px;font-weight:600;color:#e2e8f0;margin-bottom:8px;pointer-events:none">
+        Arrastra los PDFs aquí o haz clic para seleccionar
+      </div>
+      <div style="font-size:12px;color:#64748b;pointer-events:none">
+        Ctrl+clic en el diálogo para seleccionar varios · Mayús+clic para rango
+      </div>
+    </label>
+
+    <!-- Lista de archivos seleccionados -->
+    <div id="file-list" style="margin-top:12px"></div>
+
+    <!-- Botón de envío -->
+    <div style="margin-top:16px;text-align:right">
+      <button type="submit" id="submit-btn" class="btn btn-primary"
+              style="padding:12px 32px;font-size:14px;opacity:.4;cursor:not-allowed" disabled>
+        Procesar PDFs
+      </button>
+    </div>
+
+  </form>
+
+</div>
+
+<script>
+(function () {
+  var zone    = document.getElementById('drop-zone');
+  var input   = document.getElementById('file-input');
+  var listEl  = document.getElementById('file-list');
+  var btn     = document.getElementById('submit-btn');
+
+  /* -------- render -------- */
+  function render(files) {
+    var arr = Array.from(files).filter(function(f) {
+      return f.name.toLowerCase().endsWith('.pdf');
+    });
+
+    if (!arr.length) {
+      listEl.innerHTML = '';
+      btn.disabled = true;
+      btn.style.opacity = '.4';
+      btn.style.cursor  = 'not-allowed';
+      btn.textContent   = 'Procesar PDFs';
+      return;
+    }
+
+    listEl.innerHTML = arr.map(function(f) {
+      return '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;' +
+             'background:rgba(99,102,241,.12);border-radius:6px;margin-bottom:4px;' +
+             'font-size:12px;color:#818cf8">📄 ' + f.name + '</div>';
+    }).join('');
+
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor  = 'pointer';
+    btn.textContent   = arr.length === 1 ? 'Procesar 1 PDF' : 'Procesar ' + arr.length + ' PDFs';
+  }
+
+  /* -------- Diálogo de archivo (click en label) -------- */
+  input.addEventListener('change', function() {
+    render(this.files);
+  });
+
+  /* -------- Drag & drop -------- */
+  // Evitar que el navegador abra los archivos si caen fuera de la zona
+  document.addEventListener('dragover', function(e) { e.preventDefault(); });
+  document.addEventListener('drop',     function(e) { e.preventDefault(); });
+
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    zone.style.borderColor = '#6366f1';
+    zone.style.background  = 'rgba(99,102,241,.1)';
+  });
+
+  zone.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    zone.style.borderColor = '#334155';
+    zone.style.background  = 'rgba(15,23,42,.6)';
+  });
+
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();          // evitar que el label abra el diálogo además
+    zone.style.borderColor = '#334155';
+    zone.style.background  = 'rgba(15,23,42,.6)';
+
+    var rawFiles = e.dataTransfer && e.dataTransfer.files;
+    if (!rawFiles || !rawFiles.length) return;
+
+    // Transferir archivos al input con DataTransfer (soportado en Chrome/Edge/Firefox)
+    try {
+      var dt = new DataTransfer();
+      Array.from(rawFiles).forEach(function(f) {
+        if (f.name.toLowerCase().endsWith('.pdf')) dt.items.add(f);
+      });
+      if (dt.files.length) {
+        input.files = dt.files;
+        render(dt.files);
+      }
+    } catch(err) {
+      // Fallback: mostrar nombres pero pedir al usuario que los seleccione manualmente
+      listEl.innerHTML = '<div style="color:#fbbf24;font-size:12px">Tu navegador no soporta drop directo. Usa el botón para seleccionar los archivos.</div>';
+    }
+  });
+})();
+</script>
+{% endblock %}

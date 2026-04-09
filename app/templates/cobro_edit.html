@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Editar cobro · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Editar cobro{% endblock %}
+
+{% block content %}
+<div style="max-width:480px">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Editar cobro</div></div>
+    <div style="padding:16px">
+      <form method="post" action="/cobros/{{ cobro.id }}/edit">
+        <div class="form-group">
+          <label>Fecha del cargo</label>
+          <input type="date" name="fecha" value="{{ cobro.fecha.isoformat() }}" required>
+        </div>
+        <div class="form-group">
+          <label>Importe (€)</label>
+          <input type="number" name="importe" step="0.01" value="{{ cobro.importe }}" required>
+        </div>
+        <div class="form-group">
+          <label>Mes de referencia</label>
+          <input type="month" name="mes_referencia" value="{{ cobro.mes_referencia.strftime('%Y-%m') }}" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción (opcional)</label>
+          <input type="text" name="descripcion" value="{{ cobro.descripcion or '' }}">
+        </div>
+        <div style="display:flex;gap:8px">
+          <a href="/cobros" class="btn btn-ghost">Cancelar</a>
+          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

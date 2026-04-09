@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% set ok_list = resultados | selectattr('ok') | list %}
+{% set dup_list = ok_list | selectattr('duplicado') | list %}
+{% set new_list = ok_list | rejectattr('duplicado') | list %}
+{% set err_list = resultados | rejectattr('ok') | list %}
+
+{% block title %}Previsualización de facturas · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Previsualización de facturas{% endblock %}
+{% block topbar_sub %}{{ resultados|length }} archivo(s) procesado(s){% endblock %}
+{% block topbar_action %}<a href="/" class="btn btn-ghost">← Volver al dashboard</a>{% endblock %}
+
+{% block content %}
+
+<!-- Resumen -->
+<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;align-items:center">
+  <span style="background:rgba(34,197,94,.15);color:#22c55e;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600">
+    ✓ {{ new_list|length }} lista(s) para guardar
+  </span>
+  {% if dup_list %}
+  <span style="background:rgba(251,191,36,.15);color:#fbbf24;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600">
+    ⚠ {{ dup_list|length }} duplicado(s) — se omitirán
+  </span>
+  {% endif %}
+  {% if err_list %}
+  <span style="background:rgba(248,113,113,.15);color:#f87171;padding:6px 14px;border-radius:999px;font-size:13px;font-weight:600">
+    ✕ {{ err_list|length }} error(es)
+  </span>
+  {% endif %}
+</div>
+
+<form method="post" action="/facturas/confirmar">
+
+  <!-- Errores -->
+  {% for r in err_list %}
+  <div class="card" style="border-color:rgba(248,113,113,.3);margin-bottom:12px">
+    <div style="padding:12px 16px;display:flex;gap:12px;align-items:center">
+      <span style="color:#f87171;font-size:18px">✕</span>
+      <div>
+        <div style="font-size:13px;font-weight:600;color:#f87171">{{ r.filename }}</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:2px">{{ r.error }}</div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Duplicados -->
+  {% for r in dup_list %}
+  <div class="card" style="border-color:rgba(251,191,36,.25);opacity:.6;margin-bottom:12px">
+    <div style="padding:12px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;gap:10px;align-items:center">
+        <span style="color:#fbbf24;font-size:16px">⚠</span>
+        <div>
+          <div style="font-size:13px;color:#fbbf24;font-weight:600">
+            {{ r.parsed.numero_documento }} — ya existe en la base de datos
+          </div>
+          <div style="font-size:11px;color:#64748b">{{ r.filename }} · Se omitirá</div>
+        </div>
+      </div>
+      <span style="font-size:13px;color:#64748b">{{ "%.2f"|format(r.parsed.total) }} €</span>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Facturas nuevas -->
+  {% for r in new_list %}
+  {% set i = loop.index0 %}
+  <div class="card" style="margin-bottom:12px">
+    <div style="padding:14px 18px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="doc-type doc-{{ r.parsed.tipo|lower }}">{{ r.parsed.tipo }}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600">{{ r.parsed.numero_documento }}</div>
+            <div style="font-size:11px;color:#64748b">{{ r.filename }} · {{ r.parsed.fecha_emision.strftime('%d/%m/%Y') }}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:700;color:{% if r.parsed.total < 0 %}#f87171{% else %}#22c55e{% endif %}">
+            {{ "%.2f"|format(r.parsed.total) }} €
+          </div>
+          {% if r.parsed.lineas %}
+          <div style="font-size:11px;color:#64748b">{{ r.parsed.lineas|length }} concepto(s)</div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Campos ocultos -->
+      <input type="hidden" name="tmp_{{ i }}" value="{{ r.tmp_path }}">
+      <input type="hidden" name="numero_{{ i }}" value="{{ r.parsed.numero_documento }}">
+      <input type="hidden" name="tipo_{{ i }}" value="{{ r.parsed.tipo }}">
+      <input type="hidden" name="fecha_emision_{{ i }}" value="{{ r.parsed.fecha_emision.isoformat() }}">
+      <input type="hidden" name="fecha_vencimiento_{{ i }}" value="{{ r.parsed.fecha_vencimiento.isoformat() if r.parsed.fecha_vencimiento else '' }}">
+
+      <!-- Mes referencia (editable) -->
+      <div style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap">
+        <div class="form-group" style="margin:0;min-width:180px">
+          <label>Mes de referencia</label>
+          <input type="month" name="mes_referencia_{{ i }}"
+                 value="{{ r.parsed.fecha_emision.strftime('%Y-%m') }}" required>
+        </div>
+        {% if r.parsed.lineas %}
+        <div style="font-size:12px;color:#64748b;padding-bottom:4px;flex:1">
+          {% for l in r.parsed.lineas %}
+          <span style="display:inline-block;background:rgba(51,65,85,.6);border-radius:4px;padding:2px 8px;margin:2px;font-size:11px">
+            {{ l.descripcion }} ({{ "%.2f"|format(l.importe_bruto) }} €)
+          </span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+
+  <!-- Botones -->
+  <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:8px;position:sticky;bottom:24px">
+    {% if new_list %}
+    <a href="/" class="btn btn-ghost">Cancelar</a>
+    <button type="submit" class="btn btn-primary" style="padding:10px 24px;font-size:14px">
+      ✓ Guardar {{ new_list|length }} factura(s)
+    </button>
+    {% else %}
+    <a href="/" class="btn btn-primary">Volver al dashboard</a>
+    {% endif %}
+  </div>
+
+</form>
+{% endblock %}

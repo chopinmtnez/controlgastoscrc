@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Cobros · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Cobros bancarios{% endblock %}
+{% block topbar_sub %}{{ cobros|length }} cobro(s) registrado(s){% endblock %}
+
+{% block content %}
+<div style="display:grid;grid-template-columns:2fr 1fr;gap:20px">
+
+  <!-- Lista -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Cobros registrados</div></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Mes ref.</th>
+          <th class="text-right">Importe</th>
+          <th>Descripción</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cobros %}
+        <tr>
+          <td>{{ c.fecha.strftime('%d/%m/%Y') }}</td>
+          <td>{{ c.mes_referencia.strftime('%b-%y') }}</td>
+          <td class="text-right text-success">{{ "%.2f"|format(c.importe) }} €</td>
+          <td class="text-muted">{{ c.descripcion or '—' }}</td>
+          <td class="text-right">
+            <a href="/cobros/{{ c.id }}/edit" class="link-subtle">editar</a>
+            &nbsp;·&nbsp;
+            <form method="post" action="/cobros/{{ c.id }}/delete" style="display:inline"
+                  onsubmit="return confirm('¿Eliminar este cobro?')">
+              <button type="submit" class="btn-link text-danger">borrar</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="text-center text-muted" style="padding:24px">Sin cobros registrados</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Formulario añadir -->
+  <div class="card">
+    <div class="card-header"><div class="card-title">Añadir cobro</div></div>
+    <div style="padding:16px">
+      <form method="post" action="/cobros">
+        <div class="form-group">
+          <label>Fecha del cargo</label>
+          <input type="date" name="fecha" required>
+        </div>
+        <div class="form-group">
+          <label>Importe (€)</label>
+          <input type="number" name="importe" step="0.01" min="0" required placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Mes de referencia</label>
+          <input type="month" name="mes_referencia" required>
+        </div>
+        <div class="form-group">
+          <label>Descripción (opcional)</label>
+          <input type="text" name="descripcion" placeholder="Ej: Cobro ene-26">
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">+ Añadir cobro</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

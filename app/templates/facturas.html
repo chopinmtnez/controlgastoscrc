@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Facturas · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Facturas{% endblock %}
+{% block topbar_sub %}{{ facturas|length }} documento(s){% endblock %}
+{% block topbar_action %}
+  <a href="/" class="btn btn-primary">+ Subir PDF</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <form style="display:flex;gap:8px;align-items:center">
+      <input type="month" name="mes" value="{{ mes_filtro or '' }}" class="input-sm" placeholder="Filtrar mes">
+      <select name="tipo" class="input-sm">
+        <option value="">Todos los tipos</option>
+        <option value="YI" {% if tipo_filtro=='YI' %}selected{% endif %}>YI — Recibo</option>
+        <option value="YM" {% if tipo_filtro=='YM' %}selected{% endif %}>YM — Abono</option>
+        <option value="RN" {% if tipo_filtro=='RN' %}selected{% endif %}>RN — Rectificativo</option>
+      </select>
+      <button type="submit" class="btn btn-ghost">Filtrar</button>
+      <a href="/facturas" class="btn btn-ghost">Limpiar</a>
+    </form>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Nº Documento</th>
+        <th>Fecha emisión</th>
+        <th>Mes ref.</th>
+        <th class="text-right">Total</th>
+        <th>Conceptos</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in facturas %}
+      <tr>
+        <td><span class="doc-type doc-{{ f.tipo.value|lower }}">{{ f.tipo.value }}</span></td>
+        <td>{{ f.numero_documento }}</td>
+        <td>{{ f.fecha_emision.strftime('%d/%m/%Y') }}</td>
+        <td>{{ f.mes_referencia.strftime('%b-%y') }}</td>
+        <td class="text-right {% if f.total < 0 %}text-danger{% endif %}">{{ "%.2f"|format(f.total) }} €</td>
+        <td class="text-muted" style="font-size:12px">{{ f.lineas|length }} línea(s)</td>
+        <td class="text-right">
+          <a href="/facturas/{{ f.id }}" class="link-subtle">ver</a>
+          &nbsp;·&nbsp;
+          <a href="/documentos/{{ f.id }}/pdf" class="link-subtle">PDF</a>
+          &nbsp;·&nbsp;
+          <form method="post" action="/facturas/{{ f.id }}/delete" style="display:inline"
+                onsubmit="return confirm('¿Eliminar factura {{ f.numero_documento }}?')">
+            <button type="submit" class="btn-link text-danger">borrar</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted" style="padding:24px">Sin facturas registradas</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

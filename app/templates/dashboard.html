@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Dashboard · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Dashboard · Curso 2025/26{% endblock %}
+{% block topbar_sub %}Última actualización: hoy{% endblock %}
+{% block topbar_action %}
+  <a href="/facturas/subir" class="btn btn-primary">+ Subir factura PDF</a>
+{% endblock %}
+
+{% block content %}
+
+{% if insertados %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ {{ insertados }} factura(s) guardada(s) correctamente{% if omitidos %} · {{ omitidos }} duplicado(s) omitido(s){% endif %}
+</div>
+{% endif %}
+
+<!-- KPIs -->
+<div class="kpi-grid">
+  <div class="kpi warning">
+    <div class="kpi-label">Pendiente acumulado</div>
+    <div class="kpi-value text-warning">{{ "%.2f"|format(kpis.pendiente_acumulado) }} €</div>
+    <div class="kpi-sub">diferencias positivas del curso</div>
+  </div>
+  <div class="kpi neutral">
+    <div class="kpi-label">Total facturado (curso)</div>
+    <div class="kpi-value text-indigo">{{ "%.2f"|format(kpis.total_facturado) }} €</div>
+    <div class="kpi-sub">suma de todos los PDFs</div>
+  </div>
+  <div class="kpi success">
+    <div class="kpi-label">Total cobrado (curso)</div>
+    <div class="kpi-value text-success">{{ "%.2f"|format(kpis.total_cobrado) }} €</div>
+    <div class="kpi-sub">cargos bancarios registrados</div>
+  </div>
+  <div class="kpi neutral">
+    <div class="kpi-label">Beca acumulada</div>
+    <div class="kpi-value text-indigo">{{ "%.2f"|format(kpis.beca_acumulada) }} €</div>
+    <div class="kpi-sub">Comunidad de Madrid</div>
+  </div>
+</div>
+
+<!-- Tabla resumen mensual -->
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Resumen mensual</div>
+    <span class="text-muted">Curso AY 25/26 · oct 2025 – jun 2026</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Mes</th>
+        <th class="text-right">Facturas</th>
+        <th class="text-right">Beca</th>
+        <th class="text-right">Neto esperado</th>
+        <th class="text-right">Cobrado</th>
+        <th class="text-right">Diferencia</th>
+        <th class="text-center">Estado</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in resumenes %}
+      <tr {% if r.mes.month == today.month and r.mes.year == today.year %}class="row-current"{% endif %}>
+        <td><a href="/mes/{{ r.mes.strftime('%Y-%m') }}" class="month-link">{{ r.mes_str }}</a></td>
+        <td class="text-right">{% if r.total_facturas %}{{ "%.2f"|format(r.total_facturas) }} €{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-right">{% if r.beca %}<span class="text-indigo">{{ "%.2f"|format(r.beca) }} €</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-right">{% if r.total_facturas %}{{ "%.2f"|format(r.neto_esperado) }} €{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-right">{% if r.total_cobros %}{{ "%.2f"|format(r.total_cobros) }} €{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-right">
+          {% if r.diferencia > 0 %}<span class="text-warning">{{ "%.2f"|format(r.diferencia) }} €</span>
+          {% elif r.diferencia < 0 %}<span class="text-danger">{{ "%.2f"|format(r.diferencia) }} €</span>
+          {% else %}<span class="text-success">0,00 €</span>{% endif %}
+        </td>
+        <td class="text-center">
+          {% if r.estado == 'ok' %}<span class="badge badge-ok">✓ OK</span>
+          {% elif r.estado == 'pendiente' %}<span class="badge badge-pending">Pendiente</span>
+          {% elif r.estado == 'cobrado_mas' %}<span class="badge badge-over">Cobrado +</span>
+          {% else %}<span class="badge badge-empty">Sin datos</span>{% endif %}
+        </td>
+        <td class="text-right"><a href="/mes/{{ r.mes.strftime('%Y-%m') }}" class="link-subtle">ver →</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Facturas recientes -->
+{% if facturas_recientes %}
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">📄 Últimas facturas subidas</div>
+    <a href="/facturas" class="link-subtle">ver todas →</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tipo</th>
+        <th>Nº Documento</th>
+        <th>Fecha emisión</th>
+        <th>Mes ref.</th>
+        <th class="text-right">Total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for f in facturas_recientes %}
+      <tr>
+        <td><span class="doc-type doc-{{ f.tipo.value|lower }}">{{ f.tipo.value }}</span></td>
+        <td>{{ f.numero_documento }}</td>
+        <td>{{ f.fecha_emision.strftime('%d/%m/%Y') }}</td>
+        <td>{{ f.mes_referencia.strftime('%b-%y') }}</td>
+        <td class="text-right {% if f.total < 0 %}text-danger{% endif %}">{{ "%.2f"|format(f.total) }} €</td>
+        <td class="text-right"><a href="/facturas/{{ f.id }}" class="link-subtle">ver →</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Modal subir PDF -->
+<div id="upload-modal" class="modal-overlay" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Subir factura PDF</h3>
+      <button onclick="document.getElementById('upload-modal').style.display='none'" class="btn-close">✕</button>
+    </div>
+    <div id="upload-area">
+      <form id="upload-form" action="/facturas/upload" method="post" enctype="multipart/form-data">
+        <div class="upload-zone" id="drop-zone">
+          <div class="upload-icon">☁️</div>
+          <div class="upload-text">Arrastra los PDFs aquí o <strong>haz clic para seleccionar</strong></div>
+          <div style="font-size:11px;color:#475569;margin-top:4px">También puedes seleccionar varios en el diálogo (Ctrl+clic)</div>
+          <input type="file" name="pdfs" accept=".pdf" multiple id="file-input"
+                 style="position:absolute;inset:0;opacity:0;cursor:pointer">
+        </div>
+        <div id="upload-filelist" style="margin-top:8px;max-height:140px;overflow-y:auto"></div>
+        <div style="margin-top:12px;text-align:center">
+          <button type="submit" id="upload-btn" class="btn btn-primary" disabled>Selecciona PDFs primero</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const today = new Date();
+
+  (function() {
+    const zone     = document.getElementById('drop-zone');
+    const input    = document.getElementById('file-input');
+    const listEl   = document.getElementById('upload-filelist');
+    const btn      = document.getElementById('upload-btn');
+
+    function showFiles(files) {
+      const arr = Array.from(files).filter(f => f.name.toLowerCase().endsWith('.pdf'));
+      if (!arr.length) return;
+
+      listEl.innerHTML = arr.map(f =>
+        `<div style="font-size:11px;color:#818cf8;padding:2px 6px;background:rgba(99,102,241,.1);border-radius:4px;margin:2px 0">📄 ${f.name}</div>`
+      ).join('');
+
+      btn.disabled = false;
+      btn.textContent = arr.length === 1 ? 'Procesar 1 PDF' : `Procesar ${arr.length} PDFs`;
+    }
+
+    // Clic normal en el input
+    input.addEventListener('change', () => showFiles(input.files));
+
+    // Drag & drop sobre la zona
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      zone.style.borderColor = 'var(--indigo)';
+      zone.style.background  = 'rgba(99,102,241,.08)';
+    });
+    zone.addEventListener('dragleave', () => {
+      zone.style.borderColor = '';
+      zone.style.background  = '';
+    });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.style.borderColor = '';
+      zone.style.background  = '';
+
+      // Asignar los archivos soltados al input
+      const dt = new DataTransfer();
+      Array.from(e.dataTransfer.files)
+           .filter(f => f.name.toLowerCase().endsWith('.pdf'))
+           .forEach(f => dt.items.add(f));
+      input.files = dt.files;
+      showFiles(dt.files);
+    });
+  })();
+</script>
+{% endblock %}

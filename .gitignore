@@ -1,0 +1,29 @@
+# Claude Code interno
+.claude/
+.superpowers/
+
+# Entorno y secretos
+.env
+.app.env
+*.env
+
+# PDFs subidos (datos personales)
+pdfs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Base de datos local
+*.db
+*.sqlite3
+
+# Archivos temporales
+*.tmp
+*.log
+.DS_Store
+Thumbs.db

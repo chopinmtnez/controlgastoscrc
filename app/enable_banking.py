@@ -37,7 +37,11 @@ def configured() -> bool:
 def _private_key() -> str:
     if not EB_PRIVATE_KEY_B64:
         raise ValueError("EB_PRIVATE_KEY_B64 no configurado en .app.env")
-    return base64.b64decode(EB_PRIVATE_KEY_B64).decode()
+    # Añadir padding si faltan los '=' finales (problema frecuente en .env)
+    key = EB_PRIVATE_KEY_B64.strip()
+    missing = (4 - len(key) % 4) % 4
+    key += "=" * missing
+    return base64.b64decode(key).decode()
 
 
 def _make_jwt() -> str:

@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import jwt  # PyJWT
 import requests
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 EB_APP_ID = os.getenv("EB_APP_ID", "0315767f-1410-4d77-b420-510533c5b18b")
 EB_PRIVATE_KEY_B64 = os.getenv("EB_PRIVATE_KEY_B64", "")
@@ -34,14 +35,15 @@ def configured() -> bool:
     return bool(EB_APP_ID and EB_PRIVATE_KEY_B64)
 
 
-def _private_key() -> str:
+def _load_private_key():
+    """Carga la clave privada RSA desde base64. Tolerante a padding incompleto."""
     if not EB_PRIVATE_KEY_B64:
         raise ValueError("EB_PRIVATE_KEY_B64 no configurado en .app.env")
-    # Añadir padding si faltan los '=' finales (problema frecuente en .env)
-    key = EB_PRIVATE_KEY_B64.strip()
-    missing = (4 - len(key) % 4) % 4
-    key += "=" * missing
-    return base64.b64decode(key).decode()
+    key_b64 = EB_PRIVATE_KEY_B64.strip()
+    missing = (4 - len(key_b64) % 4) % 4
+    key_b64 += "=" * missing
+    pem_bytes = base64.b64decode(key_b64)
+    return load_pem_private_key(pem_bytes, password=None)
 
 
 def _make_jwt() -> str:
@@ -53,7 +55,7 @@ def _make_jwt() -> str:
             "iat": now,
             "exp": now + 3600,
         },
-        _private_key(),
+        _load_private_key(),
         algorithm="RS256",
         headers={"kid": EB_APP_ID},
     )

@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 import enable_banking as eb
 from database import get_db
 from models import Cobro, CuentaBanco
+from decimal import Decimal
 
 router = APIRouter(prefix="/banco")
 templates = Jinja2Templates(directory="templates")
@@ -60,12 +61,45 @@ async def banco_page(
             "cuenta": cuenta,
             "configurado": eb.configured(),
             "sandbox": eb.EB_SANDBOX,
+            "prelinked": eb.get_prelinked_accounts(),
             "ok": ok,
             "importados": importados,
             "omitidos": omitidos,
             "error": error,
         },
     )
+
+
+@router.post("/usar-cuenta")
+async def banco_usar_cuenta(request: Request, db: Session = Depends(get_db)):
+    """Selecciona una cuenta ING pre-enlazada sin pasar por OAuth."""
+    form = await request.form()
+    account_id = form.get("account_id", "").strip()
+    nombre = form.get("nombre", "ING").strip()
+
+    if not account_id:
+        return RedirectResponse(url="/banco?error=Selecciona+una+cuenta", status_code=302)
+
+    # Intentar obtener detalles de la cuenta para verificar acceso
+    iban_display = None
+    try:
+        details = eb.get_account_details(account_id)
+        iban = details.get("iban", "")
+        iban_display = f"···· {iban[-4:]}" if len(iban) >= 4 else iban
+    except Exception:
+        pass  # El IBAN es opcional, continuamos igual
+
+    cuenta = _get_or_create_cuenta(db)
+    cuenta.account_id = account_id
+    cuenta.aspsp_name = "ING"
+    cuenta.aspsp_country = "ES"
+    cuenta.iban_display = iban_display or nombre
+    cuenta.estado = "conectado"
+    cuenta.session_id = None  # No se usa en modo restringido
+    cuenta.error = None
+    db.commit()
+
+    return RedirectResponse(url="/banco?ok=1", status_code=302)
 
 
 @router.get("/aspsps")

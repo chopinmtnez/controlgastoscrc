@@ -18,10 +18,13 @@ import jwt  # PyJWT
 import requests
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
-EB_APP_ID = os.getenv("EB_APP_ID", "0315767f-1410-4d77-b420-510533c5b18b")
+EB_APP_ID = os.getenv("EB_APP_ID", "72904f60-6eef-48c0-8d9e-74180ad314de")
 EB_KEY_PATH = os.getenv("EB_KEY_PATH", f"/app/keys/{EB_APP_ID}.pem")
 EB_SANDBOX = os.getenv("EB_SANDBOX", "false").lower() == "true"
 ING_FILTRO = os.getenv("ING_FILTRO", "")  # Keywords separados por coma
+
+# Cuentas ING pre-enlazadas en formato "uuid:Nombre,uuid:Nombre"
+_EB_ING_ACCOUNTS_RAW = os.getenv("EB_ING_ACCOUNTS", "")
 
 _API = (
     "https://api.sandbox.enablebanking.com"
@@ -32,6 +35,22 @@ _API = (
 
 def configured() -> bool:
     return bool(EB_APP_ID and os.path.exists(EB_KEY_PATH))
+
+
+def get_prelinked_accounts() -> list[dict]:
+    """
+    Devuelve las cuentas ING pre-enlazadas configuradas en EB_ING_ACCOUNTS.
+    Formato env: "uuid:Nombre cuenta,uuid:Nombre cuenta"
+    """
+    if not _EB_ING_ACCOUNTS_RAW:
+        return []
+    accounts = []
+    for entry in _EB_ING_ACCOUNTS_RAW.split(","):
+        entry = entry.strip()
+        if ":" in entry:
+            account_id, _, name = entry.partition(":")
+            accounts.append({"account_id": account_id.strip(), "name": name.strip()})
+    return accounts
 
 
 def _load_private_key():

@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% block title %}Gmail · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Gmail · Importación automática{% endblock %}
+{% block topbar_sub %}Facturas del colegio por email{% endblock %}
+
+{% block content %}
+
+<!-- Resultado de la última acción -->
+{% if ok == 1 and insertados is not none %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ Importación completada · <strong>{{ insertados }}</strong> factura(s) nueva(s)
+  {% if omitidos %} · {{ omitidos }} duplicado(s) omitido(s){% endif %}
+</div>
+{% elif ok == 0 and insertados == 0 %}
+<div class="alert" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:#fbbf24;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ℹ No se encontraron correos nuevos del colegio.
+</div>
+{% endif %}
+
+{% if test == 1 %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ Email de prueba enviado correctamente a <strong>{{ notification_email }}</strong>
+</div>
+{% elif test == 0 %}
+<div class="alert alert-error" style="margin-bottom:16px">
+  ✕ No se pudo enviar el email de prueba. Comprueba las credenciales.
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-error" style="margin-bottom:16px">
+  ✕ {{ error }}
+</div>
+{% endif %}
+
+<div class="two-col-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  <!-- Estado de configuración -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Estado de configuración</div>
+      {% if configurado %}
+      <span class="badge badge-ok">✓ Configurado</span>
+      {% else %}
+      <span class="badge badge-pending">Sin configurar</span>
+      {% endif %}
+    </div>
+    <div style="padding:16px">
+      <table class="detail-table" style="width:100%">
+        <tr>
+          <td>Cuenta Gmail</td>
+          <td>{% if gmail_user %}<strong>{{ gmail_user }}</strong>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>App Password</td>
+          <td>{% if configurado %}<span class="text-success">●●●● ●●●● ●●●● ●●●●</span>{% else %}<span class="text-muted">No configurada</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Remitente filtro</td>
+          <td>{% if sender_filter %}<code style="font-size:11px;color:var(--indigo-light)">{{ sender_filter }}</code>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Notificaciones a</td>
+          <td>{% if notification_email %}<strong>{{ notification_email }}</strong>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+      </table>
+
+      {% if not configurado %}
+      <div style="margin-top:14px;padding:12px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;font-size:12px;color:#94a3b8">
+        <p style="color:#fbbf24;margin-bottom:8px"><strong>⚙ Cómo configurar</strong></p>
+        <p>Añade estas variables en el archivo <code>.app.env</code> del servidor:</p>
+        <pre style="margin-top:8px;background:#0f172a;padding:10px;border-radius:6px;font-size:11px;color:#818cf8;overflow-x:auto">GMAIL_USER=tu@gmail.com
+GMAIL_APP_PASSWORD=xxxx xxxx xxxx xxxx
+NOTIFICATION_EMAIL=destino@gmail.com
+GMAIL_SENDER_FILTER=Fees.ryc@inspirededu.com</pre>
+        <p style="margin-top:8px">La contraseña de aplicación se genera en:<br>
+        <strong>Cuenta Google → Seguridad → Contraseñas de aplicaciones</strong><br>
+        (requiere verificación en 2 pasos activada)</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Acciones -->
+  <div style="display:flex;flex-direction:column;gap:16px">
+
+    <!-- Importar desde Gmail -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📥 Importar facturas</div>
+      </div>
+      <div style="padding:16px">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+          Busca en tu bandeja de entrada todos los correos de
+          <code style="font-size:11px;color:var(--indigo-light)">{{ sender_filter }}</code>,
+          descarga los PDFs adjuntos y los importa automáticamente.
+          Los duplicados se omiten.
+        </p>
+        <form method="post" action="/gmail/importar">
+          <button type="submit" class="btn btn-primary btn-full"
+                  {% if not configurado %}disabled{% endif %}>
+            📥 Importar desde Gmail ahora
+          </button>
+        </form>
+        {% if not configurado %}
+        <p style="margin-top:8px;font-size:11px;color:var(--muted);text-align:center">
+          Configura las credenciales primero
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Test de notificaciones -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔔 Notificaciones</div>
+      </div>
+      <div style="padding:16px">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+          Cuando se importa una factura nueva, recibirás un email en
+          <strong>{{ notification_email or '—' }}</strong>.
+          Envía un mensaje de prueba para verificar que funciona.
+        </p>
+        <form method="post" action="/gmail/test-email">
+          <button type="submit" class="btn btn-ghost btn-full"
+                  {% if not configurado %}disabled{% endif %}>
+            ✉ Enviar email de prueba
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Información sobre ING -->
+<div class="card" style="border-color:rgba(99,102,241,.25);margin-top:4px">
+  <div class="card-header">
+    <div class="card-title" style="color:var(--indigo-light)">🏦 ING — Importación de cobros</div>
+    <span class="text-muted" style="font-size:12px">Alternativa a la API Open Banking</span>
+  </div>
+  <div style="padding:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px" class="two-col-grid">
+      <div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:8px">
+          La <strong style="color:#e2e8f0">API Open Banking de ING</strong> bajo PSD2 requiere
+          registrarse como TPP (Third Party Provider) ante el Banco de España:
+          licencia AISP, certificado eIDAS (~200€/año) y compliance legal.
+          <span style="color:#f87171">No es viable para uso personal.</span>
+        </p>
+        <p style="font-size:13px;color:var(--muted)">
+          La alternativa práctica: exportar los movimientos desde la app ING
+          como <strong style="color:#e2e8f0">CSV o Excel</strong> y subirlos aquí.
+        </p>
+      </div>
+      <div style="background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.2);border-radius:8px;padding:14px">
+        <p style="font-size:12px;color:var(--indigo-light);font-weight:600;margin-bottom:10px">Cómo exportar desde ING</p>
+        <ol style="font-size:12px;color:#94a3b8;margin:0;padding-left:16px;line-height:1.8">
+          <li>Abre la app ING o web (ing.es)</li>
+          <li>Ve a tu cuenta corriente</li>
+          <li>Movimientos → Exportar / Descargar</li>
+          <li>Elige formato CSV o Excel</li>
+          <li>Sube el archivo aquí ↓</li>
+        </ol>
+        <div style="margin-top:12px">
+          <a href="/cobros" class="btn btn-ghost btn-full" style="font-size:12px">
+            Ir a Cobros → añadir manualmente
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -8,6 +8,7 @@ services:
     env_file: .app.env
     volumes:
       - ./pdfs:/pdfs
+      - /opt/miscuentas/backend/keys:/app/keys:ro
     depends_on:
       cgcrc-db:
         condition: service_healthy

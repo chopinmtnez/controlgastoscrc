@@ -10,7 +10,6 @@ Requiere en .app.env:
   EB_SANDBOX=false
   ING_FILTRO=COLEGIO,INSPIRED,CRC,RAMON   (opcional — sin filtro importa todo)
 """
-import base64
 import os
 import time
 from datetime import date, datetime, timedelta, timezone
@@ -20,7 +19,7 @@ import requests
 from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 EB_APP_ID = os.getenv("EB_APP_ID", "0315767f-1410-4d77-b420-510533c5b18b")
-EB_PRIVATE_KEY_B64 = os.getenv("EB_PRIVATE_KEY_B64", "")
+EB_KEY_PATH = os.getenv("EB_KEY_PATH", f"/app/keys/{EB_APP_ID}.pem")
 EB_SANDBOX = os.getenv("EB_SANDBOX", "false").lower() == "true"
 ING_FILTRO = os.getenv("ING_FILTRO", "")  # Keywords separados por coma
 
@@ -32,18 +31,15 @@ _API = (
 
 
 def configured() -> bool:
-    return bool(EB_APP_ID and EB_PRIVATE_KEY_B64)
+    return bool(EB_APP_ID and os.path.exists(EB_KEY_PATH))
 
 
 def _load_private_key():
-    """Carga la clave privada RSA desde base64. Tolerante a padding incompleto."""
-    if not EB_PRIVATE_KEY_B64:
-        raise ValueError("EB_PRIVATE_KEY_B64 no configurado en .app.env")
-    key_b64 = EB_PRIVATE_KEY_B64.strip()
-    missing = (4 - len(key_b64) % 4) % 4
-    key_b64 += "=" * missing
-    pem_bytes = base64.b64decode(key_b64)
-    return load_pem_private_key(pem_bytes, password=None)
+    """Carga la clave privada RSA desde el archivo PEM."""
+    if not os.path.exists(EB_KEY_PATH):
+        raise ValueError(f"Clave privada no encontrada: {EB_KEY_PATH}")
+    with open(EB_KEY_PATH, "rb") as f:
+        return load_pem_private_key(f.read(), password=None)
 
 
 def _make_jwt() -> str:

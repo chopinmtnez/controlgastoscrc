@@ -88,22 +88,26 @@
 <div class="card" style="border-color:rgba(99,102,241,.25);opacity:.75">
   <div class="card-header">
     <div class="card-title" style="color:var(--indigo-light)">📅 Previsión</div>
-    <span class="text-muted" style="font-size:12px">Meses pendientes · solo beca estimada</span>
+    <span class="text-muted" style="font-size:12px">Meses pendientes · estimación {{ "%.0f"|format(prevision_mensual) }} €/mes</span>
   </div>
   <div class="table-scroll"><table>
     <thead>
       <tr>
         <th>Mes</th>
+        <th class="text-right">Factura prevista</th>
         <th class="text-right">Beca prevista</th>
         <th class="text-right">Neto estimado</th>
+        <th class="text-right">Cobro previsto</th>
       </tr>
     </thead>
     <tbody>
       {% for r in prevision %}
       <tr style="opacity:.8">
         <td><a href="/mes/{{ r.mes.strftime('%Y-%m') }}" class="month-link">{{ r.mes_str }}</a></td>
+        <td class="text-right text-muted">{{ "%.2f"|format(prevision_mensual) }} €</td>
         <td class="text-right">{% if r.beca %}<span class="text-indigo">{{ "%.2f"|format(r.beca) }} €</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-        <td class="text-right text-muted">{{ "%.2f"|format(r.neto_esperado) }} €</td>
+        <td class="text-right text-muted">{{ "%.2f"|format(prevision_mensual - r.beca) }} €</td>
+        <td class="text-right text-muted">{{ "%.2f"|format(prevision_mensual - r.beca) }} €</td>
       </tr>
       {% endfor %}
     </tbody>

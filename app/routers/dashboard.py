@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
@@ -14,6 +15,7 @@ templates = Jinja2Templates(directory="templates")
 
 CURSO_INICIO = date(2025, 10, 1)
 CURSO_FIN = date(2026, 6, 30)
+PREVISION_MENSUAL = Decimal("455.00")  # Factura y cobro mensual estimado
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -41,5 +43,6 @@ async def dashboard(request: Request, insertados: int = 0, omitidos: int = 0, db
             "insertados": insertados,
             "omitidos": omitidos,
             "page": "dashboard",
+            "prevision_mensual": PREVISION_MENSUAL,
         },
     )

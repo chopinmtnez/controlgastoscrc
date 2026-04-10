@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+{% block title %}Banco · ControlGastosCRC{% endblock %}
+{% block topbar_title %}ING · Open Banking{% endblock %}
+{% block topbar_sub %}Importación automática de cobros{% endblock %}
+
+{% block content %}
+
+<!-- Alertas de resultado -->
+{% if ok == 1 %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ Cuenta ING conectada correctamente{% if cuenta.iban_display %} · <strong>{{ cuenta.iban_display }}</strong>{% endif %}
+</div>
+{% elif ok == 2 %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ Sincronización completada · <strong>{{ importados }}</strong> cobro(s) nuevos importados
+  {% if omitidos %} · {{ omitidos }} ya existente(s){% endif %}
+</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-error" style="margin-bottom:16px">
+  ✕ {{ error }}
+</div>
+{% endif %}
+
+{% if not configurado %}
+<div class="alert" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);color:#fbbf24;padding:12px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  <strong>⚙ Enable Banking no configurado</strong><br>
+  <span style="color:#94a3b8">Añade <code>EB_APP_ID</code> y <code>EB_PRIVATE_KEY_B64</code> en el archivo <code>.app.env</code> del servidor.</span>
+</div>
+{% endif %}
+
+<div class="two-col-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  <!-- Estado de la conexión -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Estado de conexión</div>
+      {% if cuenta.estado == 'conectado' %}
+        <span class="badge badge-ok">✓ Conectado</span>
+      {% elif cuenta.estado == 'pendiente' %}
+        <span class="badge badge-pending">Pendiente</span>
+      {% elif cuenta.estado == 'expirado' %}
+        <span class="badge badge-over">Expirado</span>
+      {% elif cuenta.estado == 'error' %}
+        <span class="badge badge-over">Error</span>
+      {% else %}
+        <span class="badge badge-empty">Sin conectar</span>
+      {% endif %}
+    </div>
+    <div style="padding:16px">
+      <table class="detail-table" style="width:100%">
+        <tr>
+          <td>Proveedor</td>
+          <td><strong>Enable Banking</strong>{% if sandbox %} <span class="badge badge-pending">SANDBOX</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Banco</td>
+          <td>{% if cuenta.aspsp_name %}{{ cuenta.aspsp_name }} · {{ cuenta.aspsp_country }}{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Cuenta</td>
+          <td>{% if cuenta.iban_display %}<strong>{{ cuenta.iban_display }}</strong>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        </tr>
+        <tr>
+          <td>Último sync</td>
+          <td>{% if cuenta.ultimo_sync %}{{ cuenta.ultimo_sync.strftime('%d/%m/%Y %H:%M') }}{% else %}<span class="text-muted">Nunca</span>{% endif %}</td>
+        </tr>
+        {% if cuenta.error %}
+        <tr>
+          <td>Error</td>
+          <td style="color:var(--red);font-size:11px">{{ cuenta.error }}</td>
+        </tr>
+        {% endif %}
+      </table>
+
+      {% if cuenta.estado == 'conectado' %}
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <form method="post" action="/banco/sincronizar" style="flex:1">
+          <button type="submit" class="btn btn-primary btn-full">⬇ Sincronizar cobros</button>
+        </form>
+        <form method="post" action="/banco/desconectar" style="flex:1"
+              onsubmit="return confirm('¿Desconectar la cuenta ING? Tendrás que autorizarla de nuevo.')">
+          <button type="submit" class="btn btn-ghost btn-full" style="color:var(--red)">Desconectar</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Conectar banco -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">🏦 Conectar cuenta bancaria</div>
+    </div>
+    <div style="padding:16px">
+      {% if cuenta.estado == 'conectado' %}
+      <p style="font-size:13px;color:var(--muted)">
+        La cuenta ING está conectada. Usa el botón "Sincronizar cobros" para importar
+        los movimientos de los últimos 90 días.
+      </p>
+      <div style="margin-top:12px;padding:10px;background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.15);border-radius:8px;font-size:12px;color:#94a3b8">
+        <strong style="color:var(--indigo-light)">Nota PSD2:</strong> El consentimiento bancario
+        caduca cada 90 días. Cuando expire, necesitarás volver a conectar la cuenta.
+      </div>
+      {% else %}
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px">
+        Selecciona el banco y haz clic en "Conectar". Serás redirigido a la web
+        de tu banco para autorizar el acceso de solo lectura (PSD2).
+      </p>
+
+      <div class="form-group">
+        <label>País</label>
+        <select id="aspsp-country" class="input-sm" style="width:100%">
+          <option value="ES" selected>España</option>
+          <option value="NL">Países Bajos</option>
+          <option value="DE">Alemania</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Banco</label>
+        <select id="aspsp-name" style="width:100%">
+          <option value="">Cargando bancos…</option>
+        </select>
+      </div>
+
+      <a id="connect-btn" href="/banco/conectar?aspsp=ING&country=ES"
+         class="btn btn-primary btn-full"
+         {% if not configurado %}onclick="return false;" style="opacity:.5;cursor:not-allowed"{% endif %}>
+        🔗 Conectar cuenta
+      </a>
+      <p style="margin-top:8px;font-size:11px;color:var(--muted);text-align:center">
+        Solo lectura · Enable Banking actúa como TPP licenciado
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- Cómo funciona -->
+<div class="card" style="border-color:rgba(99,102,241,.25);margin-top:4px">
+  <div class="card-header">
+    <div class="card-title" style="color:var(--indigo-light)">ℹ Cómo funciona</div>
+  </div>
+  <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:20px" class="two-col-grid">
+    <div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7">
+        Esta integración usa <strong style="color:#e2e8f0">Enable Banking</strong>, el mismo proveedor
+        que MisCuentas. Enable Banking actúa como TPP licenciado bajo PSD2, por lo que no necesitas
+        registrar ninguna licencia propia.
+      </p>
+      <p style="font-size:13px;color:var(--muted);margin-top:10px;line-height:1.7">
+        Al sincronizar, se buscan los cargos bancarios de los últimos 90 días y se filtran
+        por las palabras clave definidas en <code>ING_FILTRO</code>. Los cobros nuevos se
+        crean automáticamente. Los duplicados se omiten.
+      </p>
+    </div>
+    <div style="background:rgba(99,102,241,.05);border:1px solid rgba(99,102,241,.15);border-radius:8px;padding:14px">
+      <p style="font-size:12px;color:var(--indigo-light);font-weight:600;margin-bottom:10px">Variables en .app.env</p>
+      <pre style="font-size:11px;color:#818cf8;background:#0f172a;padding:10px;border-radius:6px;overflow-x:auto">EB_APP_ID=0315767f-...
+EB_PRIVATE_KEY_B64=LS0tLS1CRUdJTi...
+EB_SANDBOX=false
+ING_FILTRO=CRC,INSPIRED,COLEGIO</pre>
+      <p style="font-size:11px;color:#475569;margin-top:8px">
+        Sin <code>ING_FILTRO</code>, se importan todos los cargos.<br>
+        La clave B64 ya está generada del proyecto MisCuentas.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const countryEl = document.getElementById('aspsp-country');
+  const nameEl    = document.getElementById('aspsp-name');
+  const btnEl     = document.getElementById('connect-btn');
+  if (!countryEl || !nameEl || !btnEl) return;
+
+  function loadAspsps(country) {
+    nameEl.innerHTML = '<option value="">Cargando…</option>';
+    fetch('/banco/aspsps')
+      .then(r => r.json())
+      .then(data => {
+        const aspsps = (data.aspsps || []).filter(a => a.country === country || !country);
+        if (!aspsps.length) {
+          nameEl.innerHTML = '<option value="">Sin bancos disponibles</option>';
+          return;
+        }
+        nameEl.innerHTML = aspsps
+          .map(a => `<option value="${a.name}">${a.name}</option>`)
+          .join('');
+        // Intentar seleccionar ING por defecto
+        const ingOpt = [...nameEl.options].find(o => o.value.toUpperCase().includes('ING'));
+        if (ingOpt) nameEl.value = ingOpt.value;
+        updateBtn();
+      })
+      .catch(() => {
+        nameEl.innerHTML = '<option value="ING">ING (predeterminado)</option>';
+        updateBtn();
+      });
+  }
+
+  function updateBtn() {
+    const aspsp   = nameEl.value;
+    const country = countryEl.value;
+    if (aspsp) {
+      btnEl.href = `/banco/conectar?aspsp=${encodeURIComponent(aspsp)}&country=${encodeURIComponent(country)}`;
+      btnEl.style.opacity = '';
+      btnEl.style.cursor  = '';
+    }
+  }
+
+  countryEl.addEventListener('change', () => loadAspsps(countryEl.value));
+  nameEl.addEventListener('change', updateBtn);
+
+  loadAspsps(countryEl.value);
+})();
+</script>
+{% endblock %}

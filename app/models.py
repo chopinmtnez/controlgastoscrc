@@ -63,3 +63,20 @@ class BecaConfig(Base):
     fecha_inicio = Column(Date, nullable=False)
     fecha_fin = Column(Date, nullable=False)
     activa = Column(Boolean, default=True)
+
+
+class CuentaBanco(Base):
+    """Conexión Open Banking con ING via Enable Banking (una sola por app)."""
+    __tablename__ = "cuenta_banco"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    aspsp_name = Column(String, nullable=True)       # ej: "ING"
+    aspsp_country = Column(String, default="ES")
+    session_id = Column(String, nullable=True)       # Enable Banking session_id
+    account_id = Column(String, nullable=True)       # Enable Banking account_id
+    iban_display = Column(String, nullable=True)     # Últimos 4 dígitos del IBAN
+    oauth_state = Column(String, nullable=True)      # Almacenamiento temporal OAuth
+    estado = Column(String, default="no_conectado")  # no_conectado/pendiente/conectado/expirado
+    ultimo_sync = Column(DateTime, nullable=True)
+    error = Column(String, nullable=True)
+    creado_en = Column(DateTime, default=datetime.utcnow)

@@ -101,9 +101,7 @@ def calcular_kpis(resumenes: list[ResumenMes]) -> dict:
     beca_acumulada = sum(
         r.beca for r in resumenes if r.mes <= mes_actual
     )
-    pendiente_acumulado = sum(
-        r.diferencia for r in resumenes if r.diferencia > 0
-    )
+    pendiente_acumulado = sum(r.diferencia for r in resumenes)
 
     return {
         "pendiente_acumulado": pendiente_acumulado,

@@ -18,7 +18,13 @@ CURSO_FIN = date(2026, 6, 30)
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, insertados: int = 0, omitidos: int = 0, db: Session = Depends(get_db)):
-    resumenes = calcular_resumen_curso(db, CURSO_INICIO, CURSO_FIN)
+    hoy = date.today()
+    mes_actual = date(hoy.year, hoy.month, 1)
+
+    todos = calcular_resumen_curso(db, CURSO_INICIO, CURSO_FIN)
+    resumenes = [r for r in todos if r.mes <= mes_actual]   # pasados + actual
+    prevision  = [r for r in todos if r.mes >  mes_actual]  # futuros
+
     kpis = calcular_kpis(resumenes)
     facturas_recientes = (
         db.query(Factura).order_by(Factura.creado_en.desc()).limit(5).all()
@@ -28,9 +34,10 @@ async def dashboard(request: Request, insertados: int = 0, omitidos: int = 0, db
         {
             "request": request,
             "resumenes": resumenes,
+            "prevision": prevision,
             "kpis": kpis,
             "facturas_recientes": facturas_recientes,
-            "today": date.today(),
+            "today": hoy,
             "insertados": insertados,
             "omitidos": omitidos,
             "page": "dashboard",

@@ -8,12 +8,10 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Cobro, Factura
 from resumen import ResumenMes, calcular_resumen_curso
+from curso import get_curso_fechas
 
 router = APIRouter(prefix="/mes")
 templates = Jinja2Templates(directory="templates")
-
-CURSO_INICIO = date(2025, 10, 1)
-CURSO_FIN = date(2026, 6, 30)
 
 
 @router.get("/{yyyy_mm}", response_class=HTMLResponse)
@@ -34,7 +32,8 @@ async def mes_detalle(request: Request, yyyy_mm: str, db: Session = Depends(get_
         Cobro.mes_referencia < date(year + (month // 12), (month % 12) + 1, 1),
     ).order_by(Cobro.fecha).all()
 
-    resumenes = calcular_resumen_curso(db, CURSO_INICIO, CURSO_FIN)
+    curso_inicio, curso_fin = get_curso_fechas(db)
+    resumenes = calcular_resumen_curso(db, curso_inicio, curso_fin)
     resumen_mes = next((r for r in resumenes if r.mes == mes_ref), None)
 
     return templates.TemplateResponse(

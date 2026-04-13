@@ -9,23 +9,23 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Factura
 from resumen import calcular_kpis, calcular_resumen_curso
+from curso import get_curso_fechas, get_curso_nombre
 
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-CURSO_INICIO = date(2025, 10, 1)
-CURSO_FIN = date(2026, 6, 30)
-PREVISION_MENSUAL = Decimal("455.00")  # Factura y cobro mensual estimado
+PREVISION_MENSUAL = Decimal("455.00")
 
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, insertados: int = 0, omitidos: int = 0, db: Session = Depends(get_db)):
     hoy = date.today()
     mes_actual = date(hoy.year, hoy.month, 1)
+    curso_inicio, curso_fin = get_curso_fechas(db)
 
-    todos = calcular_resumen_curso(db, CURSO_INICIO, CURSO_FIN)
-    resumenes = [r for r in todos if r.mes <= mes_actual]   # pasados + actual
-    prevision  = [r for r in todos if r.mes >  mes_actual]  # futuros
+    todos = calcular_resumen_curso(db, curso_inicio, curso_fin)
+    resumenes = [r for r in todos if r.mes <= mes_actual]
+    prevision  = [r for r in todos if r.mes >  mes_actual]
 
     kpis = calcular_kpis(resumenes)
     facturas_recientes = (
@@ -44,5 +44,6 @@ async def dashboard(request: Request, insertados: int = 0, omitidos: int = 0, db
             "omitidos": omitidos,
             "page": "dashboard",
             "prevision_mensual": PREVISION_MENSUAL,
+            "curso_nombre": get_curso_nombre(db),
         },
     )

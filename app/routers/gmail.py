@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from gmail_importer import GMAIL_SENDER_FILTER, GMAIL_USER, import_from_gmail
 from notifier import NOTIFICATION_EMAIL, notify_import_result, send_email
+from activity import registrar
 
 router = APIRouter(prefix="/gmail")
 templates = Jinja2Templates(directory="templates")
@@ -53,6 +54,11 @@ async def gmail_importar(request: Request, db: Session = Depends(get_db)):
     insertados = resultado["insertados"]
     omitidos = resultado["omitidos"]
     errores = resultado.get("errores", [])
+
+    registrar(db, tipo="manual", accion="gmail_import", origen="usuario",
+              ok=not bool(errores),
+              resumen=f"{insertados} factura(s) nueva(s), {omitidos} omitida(s)",
+              detalle={"insertados": insertados, "omitidos": omitidos, "errores": errores})
 
     if insertados > 0:
         notify_import_result(insertados, omitidos, errores)

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Factura, LineaFactura, TipoDocumento
 from pdf_parser import parse_pdf
+from activity import registrar
 
 router = APIRouter(prefix="/facturas")
 templates = Jinja2Templates(directory="templates")
@@ -159,6 +160,9 @@ async def facturas_confirmar(request: Request, db: Session = Depends(get_db)):
         insertados += 1
 
     db.commit()
+    registrar(db, tipo="manual", accion="factura_upload", origen="usuario",
+              resumen=f"{insertados} factura(s) confirmada(s), {omitidos} omitida(s)",
+              detalle={"insertados": insertados, "omitidos": omitidos})
     return RedirectResponse(url=f"/?insertados={insertados}&omitidos={omitidos}", status_code=302)
 
 

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Configuración · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Configuración{% endblock %}
+{% block topbar_sub %}Curso escolar, becas y ajustes generales{% endblock %}
+
+{% block content %}
+
+{% if ok == 'curso' %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ Configuración de curso guardada
+</div>
+{% elif ok == 'beca' %}
+<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
+  ✓ Beca guardada correctamente
+</div>
+{% endif %}
+
+<div class="two-col-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+  <!-- ── Cursos ── -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📅 Cursos escolares</div>
+        <span class="text-muted" style="font-size:12px">{{ cursos|length }} registrado(s)</span>
+      </div>
+      <div style="padding:16px">
+        {% if cursos %}
+        <div style="margin-bottom:16px">
+          {% for c in cursos %}
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:{% if c.activo %}rgba(99,102,241,.1){% else %}rgba(30,41,59,.5){% endif %};border:1px solid {% if c.activo %}rgba(99,102,241,.3){% else %}var(--border){% endif %};border-radius:8px;margin-bottom:8px">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:{% if c.activo %}var(--indigo-light){% else %}var(--text){% endif %}">
+                {% if c.activo %}<span style="margin-right:6px">✓</span>{% endif %}{{ c.nombre }}
+              </div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px">
+                {{ c.fecha_inicio.strftime('%d/%m/%Y') }} — {{ c.fecha_fin.strftime('%d/%m/%Y') }}
+              </div>
+            </div>
+            <div style="display:flex;gap:6px">
+              {% if not c.activo %}
+              <form method="post" action="/config/curso/{{ c.id }}/activar">
+                <button type="submit" class="btn btn-ghost" style="font-size:11px;padding:4px 8px">Activar</button>
+              </form>
+              <form method="post" action="/config/curso/{{ c.id }}/delete"
+                    onsubmit="return confirm('¿Eliminar este curso?')">
+                <button type="submit" class="btn btn-ghost" style="font-size:11px;padding:4px 8px;color:var(--red)">✕</button>
+              </form>
+              {% else %}
+              <span class="badge badge-ok">Activo</span>
+              {% endif %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Nuevo curso -->
+        <details style="margin-top:8px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--indigo-light);font-weight:500;list-style:none;padding:8px 0">
+            + Añadir nuevo curso
+          </summary>
+          <form method="post" action="/config/curso/nuevo" style="margin-top:12px">
+            <div class="form-group">
+              <label>Nombre</label>
+              <input type="text" name="nombre" placeholder="Curso 2026/27" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Inicio</label>
+                <input type="date" name="fecha_inicio" required>
+              </div>
+              <div class="form-group">
+                <label>Fin</label>
+                <input type="date" name="fecha_fin" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Crear y activar</button>
+          </form>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Becas ── -->
+  <div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🎓 Becas y ayudas</div>
+        <span class="text-muted" style="font-size:12px">{{ becas|length }} registrada(s)</span>
+      </div>
+      <div style="padding:16px">
+        {% if becas %}
+        {% for beca in becas %}
+        <details style="margin-bottom:10px">
+          <summary style="cursor:pointer;padding:10px 12px;background:{% if beca.activa %}rgba(34,197,94,.06){% else %}rgba(30,41,59,.5){% endif %};border:1px solid {% if beca.activa %}rgba(34,197,94,.2){% else %}var(--border){% endif %};border-radius:8px;list-style:none;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <span style="font-size:13px;font-weight:500">{{ beca.descripcion }}</span>
+              <span style="font-size:12px;color:var(--muted);margin-left:8px">{{ "%.2f"|format(beca.importe_mensual) }} €/mes</span>
+            </div>
+            {% if beca.activa %}<span class="badge badge-ok">Activa</span>{% else %}<span class="badge badge-empty">Inactiva</span>{% endif %}
+          </summary>
+          <form method="post" action="/config/beca/{{ beca.id }}/edit" style="padding:12px;background:var(--bg);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px">
+            <div class="form-group">
+              <label>Descripción</label>
+              <input type="text" name="descripcion" value="{{ beca.descripcion }}" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>€/mes</label>
+                <input type="number" name="importe_mensual" value="{{ beca.importe_mensual }}" step="0.01" required>
+              </div>
+              <div class="form-group" style="display:flex;align-items:center;gap:8px;padding-top:20px">
+                <input type="checkbox" name="activa" id="activa_{{ beca.id }}" {% if beca.activa %}checked{% endif %} style="width:auto">
+                <label for="activa_{{ beca.id }}" style="margin:0;text-transform:none;letter-spacing:0;font-size:13px">Activa</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Desde</label>
+                <input type="date" name="fecha_inicio" value="{{ beca.fecha_inicio.strftime('%Y-%m-%d') }}" required>
+              </div>
+              <div class="form-group">
+                <label>Hasta</label>
+                <input type="date" name="fecha_fin" value="{{ beca.fecha_fin.strftime('%Y-%m-%d') }}" required>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="submit" class="btn btn-primary" style="flex:1">Guardar</button>
+              <form method="post" action="/config/beca/{{ beca.id }}/delete"
+                    onsubmit="return confirm('¿Eliminar esta beca?')" style="flex:0">
+                <button type="submit" class="btn btn-ghost" style="color:var(--red)">✕</button>
+              </form>
+            </div>
+          </form>
+        </details>
+        {% endfor %}
+        {% endif %}
+
+        <!-- Nueva beca -->
+        <details style="margin-top:8px">
+          <summary style="cursor:pointer;font-size:13px;color:var(--indigo-light);font-weight:500;list-style:none;padding:8px 0">
+            + Añadir nueva beca/ayuda
+          </summary>
+          <form method="post" action="/config/beca/nueva" style="margin-top:12px">
+            <div class="form-group">
+              <label>Descripción</label>
+              <input type="text" name="descripcion" placeholder="Beca Comunidad de Madrid" required>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>€/mes</label>
+                <input type="number" name="importe_mensual" step="0.01" placeholder="177.00" required>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>Desde</label>
+                <input type="date" name="fecha_inicio" required>
+              </div>
+              <div class="form-group">
+                <label>Hasta</label>
+                <input type="date" name="fecha_fin" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-full">Crear beca</button>
+          </form>
+        </details>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

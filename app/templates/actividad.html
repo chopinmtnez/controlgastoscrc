@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Actividad · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Registro de actividad{% endblock %}
+{% block topbar_sub %}Todos los procesos ejecutados en la aplicación{% endblock %}
+
+{% block content %}
+
+<!-- Filtros -->
+<div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+  <a href="/actividad" class="btn {% if not tipo_filtro %}btn-primary{% else %}btn-ghost{% endif %}" style="font-size:12px">Todos</a>
+  <a href="/actividad?tipo=scheduler" class="btn {% if tipo_filtro=='scheduler' %}btn-primary{% else %}btn-ghost{% endif %}" style="font-size:12px">⏰ Automáticos</a>
+  <a href="/actividad?tipo=manual" class="btn {% if tipo_filtro=='manual' %}btn-primary{% else %}btn-ghost{% endif %}" style="font-size:12px">👤 Manuales</a>
+  <a href="/actividad?tipo=config" class="btn {% if tipo_filtro=='config' %}btn-primary{% else %}btn-ghost{% endif %}" style="font-size:12px">⚙ Configuración</a>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div class="card-title">Actividad reciente</div>
+    <span class="text-muted" style="font-size:12px">Últimas {{ logs|length }} entradas</span>
+  </div>
+  {% if not logs %}
+  <div style="padding:40px;text-align:center;color:var(--muted)">
+    <div style="font-size:32px;margin-bottom:12px">📋</div>
+    <p>Sin registros de actividad aún.</p>
+    <p style="font-size:12px;margin-top:6px">Los procesos automáticos y manuales aparecerán aquí.</p>
+  </div>
+  {% else %}
+  <div class="table-scroll"><table>
+    <thead>
+      <tr>
+        <th>Fecha y hora</th>
+        <th>Tipo</th>
+        <th>Acción</th>
+        <th>Origen</th>
+        <th>Resumen</th>
+        <th class="text-center">Estado</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in logs %}
+      <tr>
+        <td style="font-size:12px;color:var(--muted);white-space:nowrap">
+          {{ entry.timestamp.strftime('%d/%m/%Y') }}<br>
+          <span style="font-size:11px">{{ entry.timestamp.strftime('%H:%M:%S') }}</span>
+        </td>
+        <td>
+          {% if entry.tipo == 'scheduler' %}
+            <span class="badge badge-pending">⏰ Auto</span>
+          {% elif entry.tipo == 'manual' %}
+            <span class="badge badge-ok">👤 Manual</span>
+          {% elif entry.tipo == 'config' %}
+            <span class="badge" style="background:rgba(99,102,241,.15);color:var(--indigo-light)">⚙ Config</span>
+          {% else %}
+            <span class="badge badge-empty">{{ entry.tipo }}</span>
+          {% endif %}
+        </td>
+        <td style="font-size:12px;font-family:monospace;color:var(--indigo-light)">{{ entry.accion }}</td>
+        <td style="font-size:12px;color:var(--muted)">{{ entry.origen or '—' }}</td>
+        <td style="font-size:13px">{{ entry.resumen or '—' }}</td>
+        <td class="text-center">
+          {% if entry.ok %}
+            <span class="badge badge-ok">✓ OK</span>
+          {% else %}
+            <span class="badge badge-over">✕ Error</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+  {% endif %}
+</div>
+
+{% endblock %}

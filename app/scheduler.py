@@ -20,13 +20,12 @@ import enable_banking as eb
 from gmail_importer import import_from_gmail
 from notifier import send_email, notify_import_result
 from resumen import calcular_resumen_curso, calcular_kpis
+from curso import get_curso_fechas
+from activity import registrar
 from decimal import Decimal
 from datetime import datetime
 
 log = logging.getLogger("scheduler")
-
-CURSO_INICIO = date(2025, 10, 1)
-CURSO_FIN = date(2026, 6, 30)
 MADRID = pytz.timezone("Europe/Madrid")
 
 
@@ -93,10 +92,16 @@ def tarea_ing():
 
         log.info(f"ING: {importados} cobros nuevos importados")
 
+        # Registrar en activity log
+        registrar(db, tipo="scheduler", accion="ing_sync", origen="automático",
+                  ok=True, resumen=f"{importados} cobro(s) nuevo(s) importado(s)",
+                  detalle={"importados": importados, "nuevos": [(str(f), float(a), d) for f, a, d in cobros_nuevos]})
+
         # Calcular estado de reconciliación actual
         hoy = date.today()
         mes_actual = date(hoy.year, hoy.month, 1)
-        todos = calcular_resumen_curso(db, CURSO_INICIO, CURSO_FIN)
+        curso_inicio, curso_fin = get_curso_fechas(db)
+        todos = calcular_resumen_curso(db, curso_inicio, curso_fin)
         resumenes = [r for r in todos if r.mes <= mes_actual]
         kpis = calcular_kpis(resumenes)
         pendiente = kpis["pendiente_acumulado"]
@@ -196,6 +201,11 @@ def tarea_gmail():
         errores = resultado.get("errores", [])
 
         log.info(f"Gmail: {insertados} facturas nuevas, {omitidos} omitidas")
+
+        registrar(db, tipo="scheduler", accion="gmail_import", origen="automático",
+                  ok=not bool(errores),
+                  resumen=f"{insertados} factura(s) nueva(s), {omitidos} omitida(s)" + (f", {len(errores)} error(es)" if errores else ""),
+                  detalle={"insertados": insertados, "omitidos": omitidos, "errores": errores})
 
         if insertados > 0 or errores:
             notify_import_result(insertados, omitidos, errores)

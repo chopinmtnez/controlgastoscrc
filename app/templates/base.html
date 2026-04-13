@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}ControlGastosCRC{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css?v=4">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css?v=5">
   <script src="/static/htmx.min.js"></script>
 </head>
 <body>
@@ -12,33 +15,45 @@
   <!-- Sidebar -->
   <aside class="sidebar">
     <div class="logo">
-      <div class="logo-title">ControlGastos<br>CRC</div>
-      <div class="logo-sub">Lucía · Curso 25/26</div>
+      <div class="logo-icon">CRC</div>
+      <div>
+        <div class="logo-title">ControlGastos</div>
+        <div class="logo-sub">Lucía · {{ curso_nombre or 'Curso 25/26' }}</div>
+      </div>
     </div>
     <nav>
       <a href="/" class="nav-item {% if page == 'dashboard' %}active{% endif %}">
-        <span class="nav-icon">📊</span> Dashboard
+        <span class="nav-icon">▦</span> Dashboard
       </a>
+
       <div class="nav-section">Gestión</div>
       <a href="/facturas" class="nav-item {% if page == 'facturas' %}active{% endif %}">
-        <span class="nav-icon">📄</span> Facturas
+        <span class="nav-icon">◈</span> Facturas
       </a>
       <a href="/cobros" class="nav-item {% if page == 'cobros' %}active{% endif %}">
-        <span class="nav-icon">🏦</span> Cobros
+        <span class="nav-icon">◉</span> Cobros
       </a>
       <a href="/documentos" class="nav-item {% if page == 'documentos' %}active{% endif %}">
-        <span class="nav-icon">📁</span> Documentos
+        <span class="nav-icon">◫</span> Documentos
       </a>
+
       <div class="nav-section">Automatización</div>
       <a href="/gmail" class="nav-item {% if page == 'gmail' %}active{% endif %}">
-        <span class="nav-icon">📧</span> Gmail
+        <span class="nav-icon">◎</span> Gmail
       </a>
       <a href="/banco" class="nav-item {% if page == 'banco' %}active{% endif %}">
-        <span class="nav-icon">🏦</span> ING · Open Banking
+        <span class="nav-icon">◈</span> ING Open Banking
       </a>
+      <a href="/actividad" class="nav-item {% if page == 'actividad' %}active{% endif %}">
+        <span class="nav-icon">≡</span> Actividad
+      </a>
+
       <div class="nav-section">Configuración</div>
+      <a href="/config" class="nav-item {% if page == 'config' %}active{% endif %}">
+        <span class="nav-icon">◐</span> Curso y Becas
+      </a>
       <a href="/beca" class="nav-item {% if page == 'beca' %}active{% endif %}">
-        <span class="nav-icon">🎓</span> Beca
+        <span class="nav-icon">◑</span> Becas (clásico)
       </a>
     </nav>
     <div class="sidebar-footer">
@@ -64,7 +79,6 @@
   </div>
 </div>
 
-<!-- Fondo oscuro para cerrar el sidebar en móvil -->
 <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
 
 <script>
@@ -73,19 +87,11 @@
     var sidebar  = document.querySelector('.sidebar');
     var backdrop = document.getElementById('sidebar-backdrop');
     if (!btn) return;
-
     function open()  { sidebar.classList.add('open');  backdrop.classList.add('open'); }
     function close() { sidebar.classList.remove('open'); backdrop.classList.remove('open'); }
-
-    btn.addEventListener('click', function () {
-      sidebar.classList.contains('open') ? close() : open();
-    });
+    btn.addEventListener('click', function () { sidebar.classList.contains('open') ? close() : open(); });
     backdrop.addEventListener('click', close);
-
-    // Cerrar al navegar (clic en enlace del sidebar)
-    sidebar.querySelectorAll('a').forEach(function (a) {
-      a.addEventListener('click', close);
-    });
+    sidebar.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', close); });
   })();
 </script>
 </body>

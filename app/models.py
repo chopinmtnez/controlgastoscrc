@@ -65,6 +65,32 @@ class BecaConfig(Base):
     activa = Column(Boolean, default=True)
 
 
+class CursoConfig(Base):
+    """Configuración del curso escolar activo."""
+    __tablename__ = "curso_config"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    nombre = Column(String, nullable=False)        # e.g. "Curso 2025/26"
+    fecha_inicio = Column(Date, nullable=False)
+    fecha_fin = Column(Date, nullable=False)
+    activo = Column(Boolean, default=False)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+
+class ActivityLog(Base):
+    """Registro de actividad de la aplicación."""
+    __tablename__ = "activity_log"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    tipo = Column(String, nullable=False)      # scheduler / manual / config / sistema
+    accion = Column(String, nullable=False)    # ing_sync, gmail_import, factura_upload…
+    origen = Column(String, nullable=True)     # automático / usuario
+    ok = Column(Boolean, default=True)
+    resumen = Column(String, nullable=True)    # Resumen legible
+    detalle = Column(String, nullable=True)    # JSON con detalles adicionales
+
+
 class CuentaBanco(Base):
     """Conexión Open Banking con ING via Enable Banking (una sola por app)."""
     __tablename__ = "cuenta_banco"

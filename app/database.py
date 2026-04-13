@@ -24,5 +24,5 @@ def get_db():
 
 
 def create_tables():
-    from models import Factura, LineaFactura, Cobro, BecaConfig  # noqa: F401
+    from models import Factura, LineaFactura, Cobro, BecaConfig, CursoConfig, ActivityLog  # noqa: F401
     Base.metadata.create_all(bind=engine)

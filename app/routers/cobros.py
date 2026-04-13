@@ -8,20 +8,19 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Cobro
 from resumen import calcular_resumen_curso
+from curso import get_curso_fechas, get_curso_nombre
 
 router = APIRouter(prefix="/cobros")
 templates = Jinja2Templates(directory="templates")
-
-CURSO_INICIO = date(2025, 10, 1)
-CURSO_FIN = date(2026, 6, 30)
 
 
 @router.get("", response_class=HTMLResponse)
 async def cobros_list(request: Request, db: Session = Depends(get_db)):
     cobros = db.query(Cobro).order_by(Cobro.fecha.desc()).all()
-    resumenes = calcular_resumen_curso(db, CURSO_INICIO, CURSO_FIN)
+    curso_inicio, curso_fin = get_curso_fechas(db)
+    resumenes = calcular_resumen_curso(db, curso_inicio, curso_fin)
     return templates.TemplateResponse(
-        "cobros.html", {"request": request, "cobros": cobros, "resumenes": resumenes, "page": "cobros"}
+        "cobros.html", {"request": request, "cobros": cobros, "resumenes": resumenes, "page": "cobros", "curso_nombre": get_curso_nombre(db)}
     )
 
 

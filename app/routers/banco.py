@@ -21,6 +21,7 @@ import enable_banking as eb
 from database import get_db
 from models import Cobro, CuentaBanco
 from decimal import Decimal
+from activity import registrar
 
 router = APIRouter(prefix="/banco")
 templates = Jinja2Templates(directory="templates")
@@ -286,6 +287,10 @@ async def banco_sincronizar(request: Request, db: Session = Depends(get_db)):
     cuenta.error = None
     db.commit()
 
+    registrar(db, tipo="manual", accion="ing_sync", origen="usuario",
+              resumen=f"{importados} cobro(s) importado(s), {omitidos} omitido(s)",
+              detalle={"importados": importados, "omitidos": omitidos})
+
     return RedirectResponse(
         url=f"/banco?ok=2&importados={importados}&omitidos={omitidos}",
         status_code=302,
@@ -310,5 +315,8 @@ async def banco_desconectar(db: Session = Depends(get_db)):
     cuenta.error = None
     cuenta.ultimo_sync = None
     db.commit()
+
+    registrar(db, tipo="config", accion="banco_desconectar", origen="usuario",
+              resumen="Cuenta bancaria desconectada")
 
     return RedirectResponse(url="/banco", status_code=302)

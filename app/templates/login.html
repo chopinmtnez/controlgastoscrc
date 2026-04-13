@@ -27,5 +27,12 @@
       <button type="submit" class="btn btn-primary btn-full">Entrar</button>
     </form>
   </div>
+<script>
+  document.querySelectorAll('input').forEach(function(input) {
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { document.querySelector('form').requestSubmit(); }
+    });
+  });
+</script>
 </body>
 </html>

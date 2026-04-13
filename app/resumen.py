@@ -191,15 +191,17 @@ def calcular_prevision_inteligente(db: Session, meses_futuros: list[date]) -> li
                 comedor_items.append(amt)
 
     # ── Base: precios unitarios únicos de las N facturas más recientes ───────
-    # Se buscan los importes únicos (set) por factura para detectar el precio
-    # unitario sin contar el número de cuotas atrasadas en regularizaciones.
-    # Ejemplo: abril tiene 3× PM session (88€) → precio unitario detectado = 88€.
+    # Incluye tanto líneas "base" (AM/PM session) como "comedor" (lunch),
+    # ya que el comedor es parte de la cuota mensual estable, no un extra.
+    # El uso de set() por factura evita contar cuotas atrasadas de regularización
+    # como si fuesen el precio mensual (ej: 3× PM 88€ → precio unitario = 88€).
     N_RECIENTES = 3
     facturas_recientes = facturas_sorted[-N_RECIENTES:]
     base_unitarios: set[Decimal] = set()
     for f in facturas_recientes:
         for lf in f.lineas:
-            if _categorize(lf.descripcion) == "base":
+            cat = _categorize(lf.descripcion)
+            if cat in ("base", "comedor"):
                 amt = Decimal(str(lf.importe_bruto)).quantize(Decimal("1"))
                 if amt > 0:
                     base_unitarios.add(amt)
@@ -256,13 +258,13 @@ def calcular_prevision_inteligente(db: Session, meses_futuros: list[date]) -> li
         estimar_comedor = False
 
     # ── Construir previsión para cada mes futuro ─────────────────────────────
+    # Comedor ya está integrado en base_estimada; se pasa como 0 al dataclass.
     resultado = []
     for mes in meses_futuros:
         natacion_est = natacion_media if estimar_natacion else Decimal("0")
-        comedor_est  = comedor_unit  if estimar_comedor  else Decimal("0")
 
         beca_mes  = _beca_para_mes(mes, becas)
-        total_est = (base_estimada + natacion_est + comedor_est).quantize(
+        total_est = (base_estimada + natacion_est).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
         neto_est  = (total_est - beca_mes).quantize(
@@ -273,7 +275,7 @@ def calcular_prevision_inteligente(db: Session, meses_futuros: list[date]) -> li
             mes=mes,
             base=base_estimada,
             natacion=natacion_est,
-            comedor=comedor_est,
+            comedor=Decimal("0"),
             extras=Decimal("0"),
             total_estimado=total_est,
             beca=beca_mes,

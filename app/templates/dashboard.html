@@ -96,11 +96,9 @@
         <th>Mes</th>
         <th class="text-right">Cuota base</th>
         <th class="text-right">Natación</th>
-        <th class="text-right">Comedor</th>
         <th class="text-right">Beca</th>
         <th class="text-right">Factura est.</th>
         <th class="text-right">Cobro previsto</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -113,20 +111,11 @@
           {% else %}<span class="text-muted">—</span>{% endif %}
         </td>
         <td class="text-right">
-          {% if p.comedor %}<span class="text-muted">{{ "%.2f"|format(p.comedor) }} €</span>
-          {% else %}<span class="text-muted">—</span>{% endif %}
-        </td>
-        <td class="text-right">
           {% if p.beca %}<span class="text-indigo">-{{ "%.2f"|format(p.beca) }} €</span>
           {% else %}<span class="text-muted">—</span>{% endif %}
         </td>
         <td class="text-right text-muted">{{ "%.2f"|format(p.total_estimado) }} €</td>
         <td class="text-right" style="font-weight:600;color:var(--text)">{{ "%.2f"|format(p.neto_estimado) }} €</td>
-        <td class="text-right">
-          {% if p.notas %}
-          <span title="{{ p.notas|join('. ') }}" style="cursor:help;font-size:14px">⚠️</span>
-          {% endif %}
-        </td>
       </tr>
       {% endfor %}
     </tbody>

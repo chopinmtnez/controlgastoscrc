@@ -2,7 +2,7 @@
 from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from sqlalchemy.orm import Session
 
@@ -132,47 +132,36 @@ def calcular_kpis(resumenes: list[ResumenMes]) -> dict:
 
 def calcular_prevision_inteligente(db: Session, meses_futuros: list[date]) -> list[PrevisionMes]:
     """
-    Analiza las facturas históricas línea a línea para estimar cada mes futuro:
-    - Cuota base (AM session): valor más frecuente observado
-    - Natación: media del coste neto real por mes (incluyendo descuentos)
-    - Comedor: media del coste neto real por mes
-    - Extras: se descarta (imprevisibles: seguro, material, matrícula...)
-    - Beca: de BecaConfig activa para ese mes
+    Análisis de facturas históricas línea a línea para estimar meses futuros.
+
+    Estrategia:
+    - Base (AM+PM): precios unitarios únicos de las N facturas más recientes.
+      Detecta automáticamente nuevas cuotas incorporadas (ej: PM session en la
+      regularización de abril: 3 líneas de 88€ → precio unitario = 88€).
+    - Natación: importe bruto más frecuente (38€) menos el descuento parcial
+      más frecuente (19€ = 50% de descuento de profesora), excluyendo las
+      reversiones completas (38-38=0) que son regularizaciones, no descuentos.
+    - Comedor: precio unitario más frecuente entre líneas individuales (95€).
+    - Sin restricción por mes-calendario (solo tenemos un curso completo).
+    - Extras (seguro, material, matrícula): no se estiman, son imprevisibles.
     """
     if not meses_futuros:
         return []
 
     becas = db.query(BecaConfig).all()
-
-    # Recopilar todos los datos históricos por mes
-    por_mes: dict[date, dict] = defaultdict(lambda: {
-        "base": Decimal("0"),
-        "natacion": Decimal("0"),
-        "comedor": Decimal("0"),
-        "extra": Decimal("0"),
-    })
-
     facturas = (
         db.query(Factura)
-        .filter(Factura.total > 0)  # ignorar facturas de ajuste/cero
+        .filter(Factura.total > 0)
         .all()
     )
 
-    for f in facturas:
-        mes_key = date(f.mes_referencia.year, f.mes_referencia.month, 1)
-        for lf in f.lineas:
-            cat = _categorize(lf.descripcion)
-            por_mes[mes_key][cat] += Decimal(str(lf.importe_bruto))
-
-    if not por_mes:
-        # Sin historial, devolver previsión básica
-        beca_fallback = _beca_para_mes(meses_futuros[0], becas)
+    if not facturas:
         base_fb = Decimal("449")
         return [
             PrevisionMes(
                 mes=m, base=base_fb, natacion=Decimal("0"),
                 comedor=Decimal("0"), extras=Decimal("0"),
-                total_estimado=base_fb - _beca_para_mes(m, becas),
+                total_estimado=base_fb,
                 beca=_beca_para_mes(m, becas),
                 neto_estimado=base_fb - _beca_para_mes(m, becas),
                 notas=["Sin historial suficiente"],
@@ -180,58 +169,105 @@ def calcular_prevision_inteligente(db: Session, meses_futuros: list[date]) -> li
             for m in meses_futuros
         ]
 
-    meses_hist = list(por_mes.keys())
+    facturas_sorted = sorted(facturas, key=lambda f: f.mes_referencia)
 
-    # ── Cuota base: valor más común entre los meses históricos ──
-    bases = [por_mes[m]["base"] for m in meses_hist if por_mes[m]["base"] > 0]
-    if bases:
-        # Redondear a decenas para agrupar valores similares
-        freq: dict[Decimal, int] = defaultdict(int)
-        for b in bases:
-            freq[b.quantize(Decimal("1"), rounding=ROUND_HALF_UP)] += 1
-        base_estimada = max(freq, key=lambda k: freq[k])
+    # ── Recopilar líneas de natación ─────────────────────────────────────────
+    nat_positivos: list[Decimal] = []   # cargos brutos (ej: 38€)
+    nat_negativos: list[Decimal] = []   # descuentos/reversiones (ej: -19€, -38€)
+
+    # ── Recopilar líneas de comedor ──────────────────────────────────────────
+    comedor_items: list[Decimal] = []
+
+    for f in facturas_sorted:
+        for lf in f.lineas:
+            cat = _categorize(lf.descripcion)
+            amt = Decimal(str(lf.importe_bruto))
+            if cat == "natacion":
+                if amt > 0:
+                    nat_positivos.append(amt)
+                elif amt < 0:
+                    nat_negativos.append(amt)
+            elif cat == "comedor" and amt > 0:
+                comedor_items.append(amt)
+
+    # ── Base: precios unitarios únicos de las N facturas más recientes ───────
+    # Se buscan los importes únicos (set) por factura para detectar el precio
+    # unitario sin contar el número de cuotas atrasadas en regularizaciones.
+    # Ejemplo: abril tiene 3× PM session (88€) → precio unitario detectado = 88€.
+    N_RECIENTES = 3
+    facturas_recientes = facturas_sorted[-N_RECIENTES:]
+    base_unitarios: set[Decimal] = set()
+    for f in facturas_recientes:
+        for lf in f.lineas:
+            if _categorize(lf.descripcion) == "base":
+                amt = Decimal(str(lf.importe_bruto)).quantize(Decimal("1"))
+                if amt > 0:
+                    base_unitarios.add(amt)
+
+    if base_unitarios:
+        base_estimada = sum(base_unitarios)
     else:
-        base_estimada = Decimal("449")
+        # Fallback: moda histórica de importes brutos de líneas base
+        all_base: list[Decimal] = []
+        for f in facturas_sorted:
+            for lf in f.lineas:
+                if _categorize(lf.descripcion) == "base":
+                    amt = Decimal(str(lf.importe_bruto))
+                    if amt > 0:
+                        all_base.append(amt.quantize(Decimal("1")))
+        if all_base:
+            freq_base = Counter(all_base)
+            base_estimada = max(freq_base, key=lambda k: freq_base[k])
+        else:
+            base_estimada = Decimal("449")
 
-    # ── Natación: media del neto mensual histórico ──
-    natacion_vals = [por_mes[m]["natacion"] for m in meses_hist]
-    natacion_media = (
-        sum(natacion_vals) / len(natacion_vals) if natacion_vals else Decimal("0")
-    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    # ── Natación: bruto típico − descuento parcial típico ───────────────────
+    # Se excluyen las reversiones completas (|dto| == bruto → regularización 0€).
+    # Los descuentos parciales (|dto| < bruto) son el descuento real de profesora.
+    if nat_positivos:
+        freq_pos = Counter(x.quantize(Decimal("0.01")) for x in nat_positivos)
+        gross_nat = max(freq_pos, key=lambda k: freq_pos[k])
 
-    # ── Comedor: media del neto mensual histórico ──
-    comedor_vals = [por_mes[m]["comedor"] for m in meses_hist]
-    comedor_media = (
-        sum(comedor_vals) / len(comedor_vals) if comedor_vals else Decimal("0")
-    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        # Solo descuentos parciales (no reversiones completas)
+        partial_discounts = [abs(x) for x in nat_negativos if abs(x) < gross_nat]
+        if partial_discounts:
+            freq_disc = Counter(x.quantize(Decimal("0.01")) for x in partial_discounts)
+            discount_nat = max(freq_disc, key=lambda k: freq_disc[k])
+            natacion_media = (gross_nat - discount_nat).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        else:
+            natacion_media = gross_nat  # sin descuento detectado → usar bruto
 
-    # ── Detectar si algún mes históricamente tuvo natación / comedor ──
-    meses_num_con_natacion = {m.month for m in meses_hist if por_mes[m]["natacion"] != 0}
-    meses_num_con_comedor  = {m.month for m in meses_hist if por_mes[m]["comedor"] != 0}
+        if natacion_media < 0:
+            natacion_media = Decimal("0")
+        estimar_natacion = True
+    else:
+        natacion_media = Decimal("0")
+        estimar_natacion = False
 
-    # ── Construir previsión para cada mes futuro ──
+    # ── Comedor: precio unitario más frecuente ───────────────────────────────
+    if comedor_items:
+        freq_com = Counter(x.quantize(Decimal("1")) for x in comedor_items)
+        comedor_unit = max(freq_com, key=lambda k: freq_com[k])
+        estimar_comedor = True
+    else:
+        comedor_unit = Decimal("0")
+        estimar_comedor = False
+
+    # ── Construir previsión para cada mes futuro ─────────────────────────────
     resultado = []
     for mes in meses_futuros:
-        notas = []
+        natacion_est = natacion_media if estimar_natacion else Decimal("0")
+        comedor_est  = comedor_unit  if estimar_comedor  else Decimal("0")
 
-        # Natación: usar media histórica si ese mes-del-año tuvo natación
-        tiene_natacion = mes.month in meses_num_con_natacion
-        natacion_est = natacion_media if tiene_natacion else Decimal("0")
-
-        # Comedor: usar media histórica si ese mes-del-año tuvo comedor
-        tiene_comedor = mes.month in meses_num_con_comedor
-        comedor_est = comedor_media if tiene_comedor else Decimal("0")
-
-        # Si comedor es alto (>50€) probablemente fue carga extraordinaria
-        # repartida en varios meses de golpe — avisar
-        if tiene_comedor and comedor_media > Decimal("50"):
-            notas.append("Comedor estimado (puede ya estar pagado de antemano)")
-
-        beca_mes = _beca_para_mes(mes, becas)
+        beca_mes  = _beca_para_mes(mes, becas)
         total_est = (base_estimada + natacion_est + comedor_est).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
-        neto_est = (total_est - beca_mes).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        neto_est  = (total_est - beca_mes).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
 
         resultado.append(PrevisionMes(
             mes=mes,
@@ -242,7 +278,7 @@ def calcular_prevision_inteligente(db: Session, meses_futuros: list[date]) -> li
             total_estimado=total_est,
             beca=beca_mes,
             neto_estimado=neto_est,
-            notas=notas,
+            notas=[],
         ))
 
     return resultado

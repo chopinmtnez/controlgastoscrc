@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from auth import AuthMiddleware
+from auth import AuthMiddleware, APP_USERNAME, APP_PASSWORD_HASH, hash_password
 from database import create_tables, SessionLocal
 from scheduler import iniciar_scheduler
 from curso import ensure_curso_default
@@ -12,13 +12,29 @@ from routers import auth_router, dashboard, facturas, cobros, beca, mes, documen
 from routers import actividad, config as config_router
 
 
+def _ensure_default_user(db):
+    """Si no hay usuarios en BD, migra el usuario de variables de entorno."""
+    from models import Usuario
+    if db.query(Usuario).count() > 0:
+        return
+    if APP_USERNAME and APP_PASSWORD_HASH:
+        user = Usuario(
+            username=APP_USERNAME,
+            nombre=APP_USERNAME.capitalize(),
+            password_hash=APP_PASSWORD_HASH,
+            activo=True,
+        )
+        db.add(user)
+        db.commit()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_tables()
-    # Crear curso 2025/26 por defecto si no existe ninguno
     db = SessionLocal()
     try:
         ensure_curso_default(db)
+        _ensure_default_user(db)
     finally:
         db.close()
     scheduler = iniciar_scheduler()

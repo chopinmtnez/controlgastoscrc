@@ -91,6 +91,18 @@ class ActivityLog(Base):
     detalle = Column(String, nullable=True)    # JSON con detalles adicionales
 
 
+class Usuario(Base):
+    """Usuarios con acceso a la aplicación."""
+    __tablename__ = "usuarios"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    username = Column(String, unique=True, nullable=False, index=True)
+    nombre = Column(String, nullable=False, default="")
+    password_hash = Column(String, nullable=False)
+    activo = Column(Boolean, default=True)
+    creado_en = Column(DateTime, default=datetime.utcnow)
+
+
 class CuentaBanco(Base):
     """Conexión Open Banking con ING via Enable Banking (una sola por app)."""
     __tablename__ = "cuenta_banco"

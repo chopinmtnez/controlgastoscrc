@@ -7,9 +7,10 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import BecaConfig, CursoConfig, CuentaBanco, ActivityLog
+from models import BecaConfig, CursoConfig, CuentaBanco, ActivityLog, Usuario
 from curso import get_curso_nombre
 from activity import registrar
+from auth import get_current_username, hash_password
 import enable_banking as eb
 from gmail_importer import GMAIL_SENDER_FILTER, GMAIL_USER
 from notifier import NOTIFICATION_EMAIL
@@ -24,6 +25,8 @@ async def config_page(request: Request, ok: str = None, error: str = None,
                       insertados: int = None, db: Session = Depends(get_db)):
     cursos = db.query(CursoConfig).order_by(CursoConfig.fecha_inicio.desc()).all()
     becas = db.query(BecaConfig).order_by(BecaConfig.fecha_inicio.desc()).all()
+    usuarios = db.query(Usuario).order_by(Usuario.creado_en).all()
+    current_username = get_current_username(request)
 
     # ING status
     cuenta = db.query(CuentaBanco).first()
@@ -45,6 +48,8 @@ async def config_page(request: Request, ok: str = None, error: str = None,
             "request": request,
             "cursos": cursos,
             "becas": becas,
+            "usuarios": usuarios,
+            "current_username": current_username,
             "ok": ok,
             "error": error,
             "importados": importados,
@@ -176,4 +181,75 @@ async def beca_delete(beca_id: str, db: Session = Depends(get_db)):
     if beca:
         db.delete(beca)
         db.commit()
+    return RedirectResponse(url="/config", status_code=302)
+
+
+# ── Usuarios ──────────────────────────────────────────────────────────────────
+
+@router.post("/usuario/nuevo")
+async def usuario_nuevo(
+    request: Request,
+    username: str = Form(...),
+    nombre: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    username = username.strip().lower()
+    if db.query(Usuario).filter(Usuario.username == username).first():
+        return RedirectResponse(url="/config?ok=usuarios&error=El+nombre+de+usuario+ya+existe", status_code=302)
+
+    user = Usuario(
+        username=username,
+        nombre=nombre.strip(),
+        password_hash=hash_password(password),
+        activo=True,
+    )
+    db.add(user)
+    db.commit()
+
+    registrar(db, tipo="config", accion="usuario_nuevo", origen="usuario",
+              resumen=f"Nuevo usuario: {username} ({nombre})")
+
+    return RedirectResponse(url="/config?ok=usuario_nuevo", status_code=302)
+
+
+@router.post("/usuario/{usuario_id}/edit")
+async def usuario_edit(
+    request: Request,
+    usuario_id: str,
+    nombre: str = Form(...),
+    password: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    user = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+    if user:
+        user.nombre = nombre.strip()
+        if password.strip():
+            user.password_hash = hash_password(password.strip())
+        db.commit()
+        registrar(db, tipo="config", accion="usuario_edit", origen="usuario",
+                  resumen=f"Usuario editado: {user.username}")
+    return RedirectResponse(url="/config?ok=usuario_edit", status_code=302)
+
+
+@router.post("/usuario/{usuario_id}/delete")
+async def usuario_delete(
+    request: Request,
+    usuario_id: str,
+    db: Session = Depends(get_db),
+):
+    current = get_current_username(request)
+    user = db.query(Usuario).filter(Usuario.id == usuario_id).first()
+
+    if not user:
+        return RedirectResponse(url="/config", status_code=302)
+    if user.username == current:
+        return RedirectResponse(url="/config?error=No+puedes+eliminar+tu+propio+usuario", status_code=302)
+    if db.query(Usuario).count() <= 1:
+        return RedirectResponse(url="/config?error=Debe+existir+al+menos+un+usuario", status_code=302)
+
+    registrar(db, tipo="config", accion="usuario_delete", origen="usuario",
+              resumen=f"Usuario eliminado: {user.username}")
+    db.delete(user)
+    db.commit()
     return RedirectResponse(url="/config", status_code=302)

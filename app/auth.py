@@ -54,6 +54,14 @@ def decode_token(token: str) -> Optional[str]:
         return None
 
 
+def get_current_username(request: Request) -> Optional[str]:
+    """Devuelve el username del usuario autenticado leyendo el cookie JWT."""
+    token = request.cookies.get(COOKIE_NAME)
+    if token:
+        return decode_token(token)
+    return None
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         path = request.url.path

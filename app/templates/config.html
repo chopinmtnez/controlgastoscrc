@@ -9,6 +9,10 @@
 <div class="alert alert-ok">✓ Configuración de curso guardada</div>
 {% elif ok == 'beca' %}
 <div class="alert alert-ok">✓ Beca guardada correctamente</div>
+{% elif ok == 'usuario_nuevo' %}
+<div class="alert alert-ok">✓ Usuario creado correctamente</div>
+{% elif ok == 'usuario_edit' %}
+<div class="alert alert-ok">✓ Usuario actualizado</div>
 {% elif ok == 'gmail_import' %}
 <div class="alert alert-ok">✓ Gmail importado · {{ insertados or 0 }} factura(s) nueva(s){% if omitidos %} · {{ omitidos }} duplicado(s){% endif %}</div>
 {% elif ok == 'gmail_test_ok' %}
@@ -28,6 +32,7 @@
 <div class="config-tabs" id="config-tabs">
   <button class="config-tab active" data-tab="automatizacion">Automatización</button>
   <button class="config-tab" data-tab="curso">Curso y Becas</button>
+  <button class="config-tab" data-tab="usuarios">Usuarios</button>
   <button class="config-tab" data-tab="actividad">Actividad</button>
 </div>
 
@@ -320,6 +325,89 @@
 
 
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: Usuarios                                                               -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="config-panel" id="tab-usuarios">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">👤 Usuarios</div>
+      <span class="text-muted" style="font-size:12px">{{ usuarios|length }} usuario(s)</span>
+    </div>
+    <div style="padding:16px">
+
+      <!-- Lista de usuarios existentes -->
+      {% for u in usuarios %}
+      <details style="margin-bottom:10px">
+        <summary style="cursor:pointer;padding:10px 12px;background:{% if u.activo %}var(--glass){% else %}rgba(30,41,59,.5){% endif %};border:1px solid var(--border);border-radius:8px;list-style:none;display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <span style="font-size:13px;font-weight:500">{{ u.nombre or u.username }}</span>
+            <span style="font-size:11px;color:var(--muted);margin-left:8px">@{{ u.username }}</span>
+            {% if u.username == current_username %}
+            <span style="font-size:11px;color:var(--indigo-light);margin-left:6px">(tú)</span>
+            {% endif %}
+          </div>
+          {% if u.activo %}<span class="badge badge-ok">Activo</span>{% else %}<span class="badge badge-empty">Inactivo</span>{% endif %}
+        </summary>
+        <div style="padding:12px;background:var(--bg);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px">
+          <form method="post" action="/config/usuario/{{ u.id }}/edit">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Nombre</label>
+                <input type="text" name="nombre" value="{{ u.nombre }}" required>
+              </div>
+              <div class="form-group">
+                <label>Usuario</label>
+                <input type="text" value="{{ u.username }}" disabled style="opacity:.5">
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Nueva contraseña <span style="color:var(--muted);font-weight:400">(dejar en blanco para no cambiarla)</span></label>
+              <input type="password" name="password" placeholder="••••••••" autocomplete="new-password">
+            </div>
+            <div style="display:flex;gap:8px">
+              <button type="submit" class="btn btn-primary" style="flex:1">Guardar cambios</button>
+              {% if u.username != current_username %}
+              <form method="post" action="/config/usuario/{{ u.id }}/delete"
+                    onsubmit="return confirm('¿Eliminar a {{ u.nombre or u.username }}?')" style="flex:0">
+                <button type="submit" class="btn btn-ghost" style="color:var(--red)">✕ Eliminar</button>
+              </form>
+              {% endif %}
+            </div>
+          </form>
+        </div>
+      </details>
+      {% endfor %}
+
+      <!-- Añadir nuevo usuario -->
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:13px;color:var(--indigo-light);font-weight:500;list-style:none;padding:8px 0">
+          + Añadir nuevo usuario
+        </summary>
+        <form method="post" action="/config/usuario/nuevo" style="margin-top:12px">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Nombre</label>
+              <input type="text" name="nombre" placeholder="Tamara" required>
+            </div>
+            <div class="form-group">
+              <label>Usuario <span style="color:var(--muted);font-weight:400">(minúsculas, sin espacios)</span></label>
+              <input type="text" name="username" placeholder="tamara" pattern="[a-z0-9_]+" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" name="password" placeholder="••••••••" required autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Crear usuario</button>
+        </form>
+      </details>
+
+    </div>
+  </div>
+</div><!-- /tab-usuarios -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <!-- TAB: Actividad                                                              -->
 <!-- ═══════════════════════════════════════════════════════════════════════════ -->
 <div class="config-panel" id="tab-actividad">
@@ -409,11 +497,11 @@
     panels.forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + id); });
   }
 
-  // Si hay un parámetro ok/error relacionado con gmail o banco, ir a automatización
   var params = new URLSearchParams(window.location.search);
   var ok = params.get('ok') || '';
-  var defaultTab = (ok.startsWith('gmail') || ok.startsWith('banco') || params.get('error'))
-    ? 'automatizacion' : 'automatizacion';
+  var defaultTab = ok.startsWith('usuario')
+    ? 'usuarios'
+    : (ok === 'curso' || ok === 'beca') ? 'curso' : 'automatizacion';
   activateTab(defaultTab);
 
   tabs.forEach(function(tab) {

@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/static/style.css?v=5">
+  <link rel="stylesheet" href="/static/style.css?v=6">
   <script src="/static/htmx.min.js"></script>
 </head>
 <body>
@@ -37,23 +37,9 @@
         <span class="nav-icon">◫</span> Documentos
       </a>
 
-      <div class="nav-section">Automatización</div>
-      <a href="/gmail" class="nav-item {% if page == 'gmail' %}active{% endif %}">
-        <span class="nav-icon">◎</span> Gmail
-      </a>
-      <a href="/banco" class="nav-item {% if page == 'banco' %}active{% endif %}">
-        <span class="nav-icon">◈</span> ING Open Banking
-      </a>
-      <a href="/actividad" class="nav-item {% if page == 'actividad' %}active{% endif %}">
-        <span class="nav-icon">≡</span> Actividad
-      </a>
-
       <div class="nav-section">Configuración</div>
-      <a href="/config" class="nav-item {% if page == 'config' %}active{% endif %}">
-        <span class="nav-icon">◐</span> Curso y Becas
-      </a>
-      <a href="/beca" class="nav-item {% if page == 'beca' %}active{% endif %}">
-        <span class="nav-icon">◑</span> Becas (clásico)
+      <a href="/config" class="nav-item {% if page in ['config','gmail','banco','actividad'] %}active{% endif %}">
+        <span class="nav-icon">◐</span> Ajustes
       </a>
     </nav>
     <div class="sidebar-footer">

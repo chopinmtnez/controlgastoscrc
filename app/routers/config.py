@@ -1,3 +1,4 @@
+import os
 from datetime import date
 
 from fastapi import APIRouter, Depends, Form, Request
@@ -6,18 +7,38 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models import BecaConfig, CursoConfig
+from models import BecaConfig, CursoConfig, CuentaBanco, ActivityLog
 from curso import get_curso_nombre
 from activity import registrar
+import enable_banking as eb
+from gmail_importer import GMAIL_SENDER_FILTER, GMAIL_USER
+from notifier import NOTIFICATION_EMAIL
 
 router = APIRouter(prefix="/config")
 templates = Jinja2Templates(directory="templates")
 
 
 @router.get("", response_class=HTMLResponse)
-async def config_page(request: Request, ok: str = None, db: Session = Depends(get_db)):
+async def config_page(request: Request, ok: str = None, error: str = None,
+                      importados: int = None, omitidos: int = None,
+                      insertados: int = None, db: Session = Depends(get_db)):
     cursos = db.query(CursoConfig).order_by(CursoConfig.fecha_inicio.desc()).all()
     becas = db.query(BecaConfig).order_by(BecaConfig.fecha_inicio.desc()).all()
+
+    # ING status
+    cuenta = db.query(CuentaBanco).first()
+
+    # Gmail status
+    gmail_configurado = bool(GMAIL_USER and os.getenv("GMAIL_APP_PASSWORD"))
+
+    # Actividad reciente
+    logs = (
+        db.query(ActivityLog)
+        .order_by(ActivityLog.timestamp.desc())
+        .limit(15)
+        .all()
+    )
+
     return templates.TemplateResponse(
         "config.html",
         {
@@ -25,8 +46,24 @@ async def config_page(request: Request, ok: str = None, db: Session = Depends(ge
             "cursos": cursos,
             "becas": becas,
             "ok": ok,
+            "error": error,
+            "importados": importados,
+            "omitidos": omitidos,
+            "insertados": insertados,
             "page": "config",
             "curso_nombre": get_curso_nombre(db),
+            # ING
+            "cuenta": cuenta,
+            "ing_configurado": eb.configured(),
+            "ing_sandbox": eb.EB_SANDBOX,
+            "ing_prelinked": eb.get_prelinked_accounts(),
+            # Gmail
+            "gmail_configurado": gmail_configurado,
+            "gmail_user": GMAIL_USER,
+            "notification_email": NOTIFICATION_EMAIL,
+            "sender_filter": GMAIL_SENDER_FILTER,
+            # Actividad
+            "logs": logs,
         },
     )
 

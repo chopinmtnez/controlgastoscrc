@@ -85,29 +85,48 @@
 
 <!-- Previsión meses futuros -->
 {% if prevision %}
-<div class="card" style="border-color:rgba(99,102,241,.25);opacity:.75">
+<div class="card" style="border-color:rgba(99,102,241,.25);opacity:.85">
   <div class="card-header">
-    <div class="card-title" style="color:var(--indigo-light)">📅 Previsión</div>
-    <span class="text-muted" style="font-size:12px">Meses pendientes · estimación {{ "%.0f"|format(prevision_mensual) }} €/mes</span>
+    <div class="card-title" style="color:var(--indigo-light)">📅 Previsión inteligente</div>
+    <span class="text-muted" style="font-size:12px">Estimación basada en historial de facturas</span>
   </div>
   <div class="table-scroll"><table>
     <thead>
       <tr>
         <th>Mes</th>
-        <th class="text-right">Factura prevista</th>
-        <th class="text-right">Beca prevista</th>
-        <th class="text-right">Neto estimado</th>
+        <th class="text-right">Base AM</th>
+        <th class="text-right">Natación</th>
+        <th class="text-right">Comedor</th>
+        <th class="text-right">Beca</th>
+        <th class="text-right">Factura est.</th>
         <th class="text-right">Cobro previsto</th>
+        <th></th>
       </tr>
     </thead>
     <tbody>
-      {% for r in prevision %}
-      <tr style="opacity:.8">
-        <td><a href="/mes/{{ r.mes.strftime('%Y-%m') }}" class="month-link">{{ r.mes_str }}</a></td>
-        <td class="text-right text-muted">{{ "%.2f"|format(prevision_mensual) }} €</td>
-        <td class="text-right">{% if r.beca %}<span class="text-indigo">{{ "%.2f"|format(r.beca) }} €</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
-        <td class="text-right text-muted">{{ "%.2f"|format(prevision_mensual - r.beca) }} €</td>
-        <td class="text-right text-muted">{{ "%.2f"|format(prevision_mensual - r.beca) }} €</td>
+      {% for p in prevision %}
+      <tr style="opacity:.85">
+        <td><span class="month-link">{{ p.mes_str }}</span></td>
+        <td class="text-right text-muted">{{ "%.2f"|format(p.base) }} €</td>
+        <td class="text-right">
+          {% if p.natacion %}<span class="text-muted">{{ "%.2f"|format(p.natacion) }} €</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-right">
+          {% if p.comedor %}<span class="text-muted">{{ "%.2f"|format(p.comedor) }} €</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-right">
+          {% if p.beca %}<span class="text-indigo">-{{ "%.2f"|format(p.beca) }} €</span>
+          {% else %}<span class="text-muted">—</span>{% endif %}
+        </td>
+        <td class="text-right text-muted">{{ "%.2f"|format(p.total_estimado) }} €</td>
+        <td class="text-right" style="font-weight:600;color:var(--text)">{{ "%.2f"|format(p.neto_estimado) }} €</td>
+        <td class="text-right">
+          {% if p.notas %}
+          <span title="{{ p.notas|join('. ') }}" style="cursor:help;font-size:14px">⚠️</span>
+          {% endif %}
+        </td>
       </tr>
       {% endfor %}
     </tbody>

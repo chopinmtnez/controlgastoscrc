@@ -79,7 +79,7 @@ async def banco_usar_cuenta(request: Request, db: Session = Depends(get_db)):
     nombre = form.get("nombre", "ING").strip()
 
     if not account_id:
-        return RedirectResponse(url="/banco?error=Selecciona+una+cuenta", status_code=302)
+        return RedirectResponse(url="/config?error=Selecciona+una+cuenta", status_code=302)
 
     # Intentar obtener detalles de la cuenta para verificar acceso
     iban_display = None
@@ -100,7 +100,7 @@ async def banco_usar_cuenta(request: Request, db: Session = Depends(get_db)):
     cuenta.error = None
     db.commit()
 
-    return RedirectResponse(url="/banco?ok=1", status_code=302)
+    return RedirectResponse(url="/config?ok=banco_ok", status_code=302)
 
 
 @router.get("/aspsps")
@@ -224,7 +224,7 @@ async def banco_callback(
     cuenta.error = None
     db.commit()
 
-    return RedirectResponse(url="/banco?ok=1", status_code=302)
+    return RedirectResponse(url="/config?ok=banco_ok", status_code=302)
 
 
 # ── Sincronización ────────────────────────────────────────────────────────────
@@ -292,7 +292,7 @@ async def banco_sincronizar(request: Request, db: Session = Depends(get_db)):
               detalle={"importados": importados, "omitidos": omitidos})
 
     return RedirectResponse(
-        url=f"/banco?ok=2&importados={importados}&omitidos={omitidos}",
+        url=f"/config?ok=banco_sync&importados={importados}&omitidos={omitidos}",
         status_code=302,
     )
 
@@ -319,4 +319,4 @@ async def banco_desconectar(db: Session = Depends(get_db)):
     registrar(db, tipo="config", accion="banco_desconectar", origen="usuario",
               resumen="Cuenta bancaria desconectada")
 
-    return RedirectResponse(url="/banco", status_code=302)
+    return RedirectResponse(url="/config", status_code=302)

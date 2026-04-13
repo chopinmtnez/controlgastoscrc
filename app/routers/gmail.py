@@ -47,9 +47,8 @@ async def gmail_importar(request: Request, db: Session = Depends(get_db)):
     resultado = import_from_gmail(db)
 
     if not resultado["ok"]:
-        # URL-encode el error básico
         err = resultado["error"].replace(" ", "+").replace("&", "%26")
-        return RedirectResponse(url=f"/gmail?error={err}", status_code=302)
+        return RedirectResponse(url=f"/config?error={err}", status_code=302)
 
     insertados = resultado["insertados"]
     omitidos = resultado["omitidos"]
@@ -64,7 +63,7 @@ async def gmail_importar(request: Request, db: Session = Depends(get_db)):
         notify_import_result(insertados, omitidos, errores)
 
     return RedirectResponse(
-        url=f"/gmail?ok=1&insertados={insertados}&omitidos={omitidos}",
+        url=f"/config?ok=gmail_import&insertados={insertados}&omitidos={omitidos}",
         status_code=302,
     )
 
@@ -83,4 +82,4 @@ async def gmail_test_email(request: Request):
         <p style="font-size:12px;color:#64748b">ControlGastosCRC · Lucía · Curso 25/26</p>
         </body></html>""",
     )
-    return RedirectResponse(url=f"/gmail?test={'1' if ok else '0'}", status_code=302)
+    return RedirectResponse(url=f"/config?ok={'gmail_test_ok' if ok else 'gmail_test_fail'}", status_code=302)

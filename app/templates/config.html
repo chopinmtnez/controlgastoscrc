@@ -1,24 +1,174 @@
 {% extends "base.html" %}
-{% block title %}Configuración · ControlGastosCRC{% endblock %}
-{% block topbar_title %}Configuración{% endblock %}
-{% block topbar_sub %}Curso escolar, becas y ajustes generales{% endblock %}
+{% block title %}Ajustes · ControlGastosCRC{% endblock %}
+{% block topbar_title %}Ajustes{% endblock %}
+{% block topbar_sub %}Curso, becas, automatización y actividad{% endblock %}
 
 {% block content %}
 
 {% if ok == 'curso' %}
-<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
-  ✓ Configuración de curso guardada
-</div>
+<div class="alert alert-ok">✓ Configuración de curso guardada</div>
 {% elif ok == 'beca' %}
-<div class="alert" style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e;padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px">
-  ✓ Beca guardada correctamente
-</div>
+<div class="alert alert-ok">✓ Beca guardada correctamente</div>
+{% elif ok == 'gmail_import' %}
+<div class="alert alert-ok">✓ Gmail importado · {{ insertados or 0 }} factura(s) nueva(s){% if omitidos %} · {{ omitidos }} duplicado(s){% endif %}</div>
+{% elif ok == 'gmail_test_ok' %}
+<div class="alert alert-ok">✓ Email de prueba enviado correctamente</div>
+{% elif ok == 'gmail_test_fail' %}
+<div class="alert alert-warn">⚠ No se pudo enviar el email de prueba. Revisa la configuración SMTP.</div>
+{% elif ok == 'banco_ok' %}
+<div class="alert alert-ok">✓ Cuenta ING conectada correctamente</div>
+{% elif ok == 'banco_sync' %}
+<div class="alert alert-ok">✓ Sincronizado · {{ importados or 0 }} cobro(s) importado(s){% if omitidos %} · {{ omitidos }} ya existían{% endif %}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-err">✕ {{ error }}</div>
 {% endif %}
 
-<div class="two-col-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+<!-- TABS -->
+<div class="config-tabs" id="config-tabs">
+  <button class="config-tab active" data-tab="automatizacion">Automatización</button>
+  <button class="config-tab" data-tab="curso">Curso y Becas</button>
+  <button class="config-tab" data-tab="actividad">Actividad</button>
+</div>
 
-  <!-- ── Cursos ── -->
-  <div>
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: Automatización (Gmail + ING)                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="config-panel active" id="tab-automatizacion">
+  <div class="two-col-grid">
+
+    <!-- Gmail -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">◎ Gmail</div>
+        {% if gmail_configurado %}
+        <span class="badge badge-ok">Configurado</span>
+        {% else %}
+        <span class="badge badge-pending">Sin configurar</span>
+        {% endif %}
+      </div>
+      <div style="padding:16px">
+        {% if gmail_configurado %}
+        <div style="margin-bottom:16px">
+          <div class="info-row"><span class="info-label">Cuenta</span><span class="info-val">{{ gmail_user }}</span></div>
+          <div class="info-row"><span class="info-label">Remitente filtrado</span><span class="info-val">{{ sender_filter }}</span></div>
+          <div class="info-row"><span class="info-label">Notificaciones</span><span class="info-val">{{ notification_email or '—' }}</span></div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <form method="post" action="/gmail/importar" style="flex:1">
+            <button type="submit" class="btn btn-primary btn-full">Importar ahora</button>
+          </form>
+          <form method="post" action="/gmail/test-email">
+            <button type="submit" class="btn btn-ghost" title="Enviar email de prueba">📧 Test</button>
+          </form>
+        </div>
+        {% else %}
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Configura <code>GMAIL_USER</code> y <code>GMAIL_APP_PASSWORD</code> en el fichero <code>.app.env</code> del servidor para activar la importación automática.
+        </p>
+        <div style="background:rgba(30,41,59,.7);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);font-family:monospace">
+          GMAIL_USER=tucuenta@gmail.com<br>
+          GMAIL_APP_PASSWORD=xxxx-xxxx-xxxx-xxxx
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ING Open Banking -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">◈ ING Open Banking</div>
+        {% if cuenta and cuenta.estado == 'conectado' %}
+        <span class="badge badge-ok">Conectado</span>
+        {% elif ing_configurado %}
+        <span class="badge badge-pending">Sin vincular</span>
+        {% else %}
+        <span class="badge badge-empty">Sin configurar</span>
+        {% endif %}
+      </div>
+      <div style="padding:16px">
+
+        {% if cuenta and cuenta.estado == 'conectado' %}
+        <!-- Cuenta conectada -->
+        <div style="margin-bottom:16px">
+          <div class="info-row"><span class="info-label">Banco</span><span class="info-val">{{ cuenta.aspsp_name }}</span></div>
+          <div class="info-row"><span class="info-label">IBAN</span><span class="info-val">{{ cuenta.iban_display or '—' }}</span></div>
+          <div class="info-row"><span class="info-label">Última sync</span><span class="info-val">{{ cuenta.ultimo_sync.strftime('%d/%m/%Y %H:%M') if cuenta.ultimo_sync else '—' }}</span></div>
+          {% if ing_sandbox %}<div class="info-row"><span class="info-label">Modo</span><span class="info-val" style="color:var(--yellow)">Sandbox</span></div>{% endif %}
+        </div>
+        <div style="display:flex;gap:8px">
+          <form method="post" action="/banco/sincronizar" style="flex:1">
+            <button type="submit" class="btn btn-primary btn-full">Sincronizar cobros</button>
+          </form>
+          <form method="post" action="/banco/desconectar">
+            <button type="submit" class="btn btn-ghost" style="color:var(--red)">Desconectar</button>
+          </form>
+        </div>
+
+        {% elif ing_configurado and ing_prelinked %}
+        <!-- Pre-linked accounts -->
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Selecciona la cuenta ING vinculada:</p>
+        <form method="post" action="/banco/usar-cuenta">
+          <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+            {% for acc in ing_prelinked %}
+            <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--glass);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px">
+              <input type="radio" name="account_id" value="{{ acc.account_id }}" {% if loop.first %}checked{% endif %} style="width:auto;accent-color:var(--indigo)">
+              <span style="font-weight:500">{{ acc.nombre }}</span>
+              <span style="color:var(--muted);font-size:11px;margin-left:auto">{{ acc.iban[-4:] if acc.iban else '' }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Usar esta cuenta</button>
+        </form>
+
+        {% elif ing_configurado %}
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Conecta tu cuenta ING mediante Open Banking:</p>
+        <a href="/banco/conectar" class="btn btn-primary btn-full" style="display:block;text-align:center">Conectar ING</a>
+
+        {% else %}
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+          Configura las variables de Enable Banking en <code>.app.env</code> del servidor.
+        </p>
+        <div style="background:rgba(30,41,59,.7);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px;color:var(--muted);font-family:monospace">
+          ENABLE_BANKING_CLIENT_ID=...<br>
+          ENABLE_BANKING_KEY_PATH=...
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
+
+  </div><!-- /two-col-grid -->
+
+  <!-- Scheduler info -->
+  <div class="card" style="margin-top:0">
+    <div class="card-header">
+      <div class="card-title">⏱ Tareas automáticas</div>
+      <span class="badge badge-ok">Activo</span>
+    </div>
+    <div style="padding:16px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="padding:12px;background:var(--glass);border:1px solid var(--border);border-radius:8px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Sincronización ING</div>
+        <div style="font-size:13px;font-weight:500">Diaria a las 10:00h</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Europe/Madrid</div>
+      </div>
+      <div style="padding:12px;background:var(--glass);border:1px solid var(--border);border-radius:8px">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Importación Gmail</div>
+        <div style="font-size:13px;font-weight:500">Diaria a las 10:05h</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">Europe/Madrid · con notificación</div>
+      </div>
+    </div>
+  </div>
+</div><!-- /tab-automatizacion -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: Curso y Becas                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="config-panel" id="tab-curso">
+  <div class="two-col-grid">
+
+    <!-- Cursos -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">📅 Cursos escolares</div>
@@ -55,7 +205,6 @@
         </div>
         {% endif %}
 
-        <!-- Nuevo curso -->
         <details style="margin-top:8px">
           <summary style="cursor:pointer;font-size:13px;color:var(--indigo-light);font-weight:500;list-style:none;padding:8px 0">
             + Añadir nuevo curso
@@ -80,10 +229,8 @@
         </details>
       </div>
     </div>
-  </div>
 
-  <!-- ── Becas ── -->
-  <div>
+    <!-- Becas -->
     <div class="card">
       <div class="card-header">
         <div class="card-title">🎓 Becas y ayudas</div>
@@ -137,7 +284,6 @@
         {% endfor %}
         {% endif %}
 
-        <!-- Nueva beca -->
         <details style="margin-top:8px">
           <summary style="cursor:pointer;font-size:13px;color:var(--indigo-light);font-weight:500;list-style:none;padding:8px 0">
             + Añadir nueva beca/ayuda
@@ -168,7 +314,114 @@
         </details>
       </div>
     </div>
-  </div>
 
-</div>
+  </div>
+</div><!-- /tab-curso -->
+
+
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<!-- TAB: Actividad                                                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════════ -->
+<div class="config-panel" id="tab-actividad">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">≡ Actividad reciente</div>
+      <a href="/actividad" class="link-subtle" style="font-size:12px">ver historial completo →</a>
+    </div>
+    {% if logs %}
+    <div class="table-scroll"><table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Acción</th>
+          <th>Origen</th>
+          <th>Resumen</th>
+          <th class="text-center">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td style="white-space:nowrap;font-size:12px;color:var(--muted)">{{ log.timestamp.strftime('%d/%m %H:%M') }}</td>
+          <td><span class="badge {% if log.tipo == 'scheduler' %}badge-indigo{% elif log.tipo == 'manual' %}badge-ok{% elif log.tipo == 'config' %}badge-pending{% else %}badge-empty{% endif %}">{{ log.tipo }}</span></td>
+          <td style="font-size:12px;color:var(--muted)">{{ log.accion }}</td>
+          <td style="font-size:12px;color:var(--muted)">{{ log.origen or '—' }}</td>
+          <td style="font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ log.resumen or '—' }}</td>
+          <td class="text-center">{% if log.ok %}<span class="text-success">✓</span>{% else %}<span class="text-danger">✕</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table></div>
+    {% else %}
+    <div style="padding:32px;text-align:center;color:var(--muted);font-size:13px">Sin actividad registrada aún</div>
+    {% endif %}
+  </div>
+</div><!-- /tab-actividad -->
+
+
+<style>
+.alert { padding:10px 16px;border-radius:8px;margin-bottom:16px;font-size:13px }
+.alert-ok   { background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:#22c55e }
+.alert-warn { background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:#f59e0b }
+.alert-err  { background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);color:#ef4444 }
+
+.config-tabs {
+  display:flex;gap:4px;margin-bottom:16px;
+  background:var(--glass);border:1px solid var(--border);border-radius:10px;padding:4px;
+}
+.config-tab {
+  flex:1;padding:8px 16px;border:none;border-radius:7px;
+  background:transparent;color:var(--muted);font-size:13px;font-weight:500;
+  cursor:pointer;transition:all .2s;font-family:inherit;
+}
+.config-tab.active {
+  background:rgba(99,102,241,.15);color:var(--indigo-light);
+  border:1px solid rgba(99,102,241,.25);
+}
+.config-tab:hover:not(.active) { color:var(--text);background:rgba(255,255,255,.04) }
+
+.config-panel { display:none }
+.config-panel.active { display:block }
+
+.info-row {
+  display:flex;align-items:center;gap:8px;padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;
+}
+.info-row:last-child { border-bottom:none }
+.info-label { color:var(--muted);min-width:120px;font-size:12px }
+.info-val   { color:var(--text);font-weight:500 }
+
+.badge-indigo {
+  background:rgba(99,102,241,.15);color:var(--indigo-light);
+  border:1px solid rgba(99,102,241,.25);
+}
+</style>
+
+<script>
+(function() {
+  var tabs   = document.querySelectorAll('.config-tab');
+  var panels = document.querySelectorAll('.config-panel');
+
+  // Activar tab por hash o primera
+  function activateTab(id) {
+    tabs.forEach(function(t) { t.classList.toggle('active', t.dataset.tab === id); });
+    panels.forEach(function(p) { p.classList.toggle('active', p.id === 'tab-' + id); });
+  }
+
+  // Si hay un parámetro ok/error relacionado con gmail o banco, ir a automatización
+  var params = new URLSearchParams(window.location.search);
+  var ok = params.get('ok') || '';
+  var defaultTab = (ok.startsWith('gmail') || ok.startsWith('banco') || params.get('error'))
+    ? 'automatizacion' : 'automatizacion';
+  activateTab(defaultTab);
+
+  tabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      activateTab(tab.dataset.tab);
+    });
+  });
+})();
+</script>
+
 {% endblock %}

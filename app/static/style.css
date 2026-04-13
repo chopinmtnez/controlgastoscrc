@@ -222,6 +222,7 @@ tr:hover td { background: rgba(255,255,255,.03); }
 .badge-pending { background: rgba(251,191,36,.12);  color: var(--yellow); border: 1px solid rgba(251,191,36,.2);  }
 .badge-over    { background: rgba(248,113,113,.12); color: var(--red);    border: 1px solid rgba(248,113,113,.2); }
 .badge-empty   { background: rgba(100,116,139,.1);  color: var(--muted);  border: 1px solid rgba(100,116,139,.15); }
+.badge-indigo  { background: rgba(99,102,241,.15);  color: var(--indigo-light); border: 1px solid rgba(99,102,241,.25); }
 
 /* ── Doc type chips ── */
 .doc-type { display: inline-block; padding: 2px 7px; border-radius: 5px; font-size: 10px; font-weight: 700; }

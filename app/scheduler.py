@@ -8,7 +8,7 @@ Cada día a las 10:00 hora Madrid:
 Notificaciones por email si hay cambios o desajustes.
 """
 import logging
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -23,7 +23,6 @@ from resumen import calcular_resumen_curso, calcular_kpis
 from curso import get_curso_fechas
 from activity import registrar
 from decimal import Decimal
-from datetime import datetime
 
 log = logging.getLogger("scheduler")
 MADRID = pytz.timezone("Europe/Madrid")
@@ -232,6 +231,42 @@ def _notificar_error(origen: str, mensaje: str):
     send_email(f"ControlGastosCRC · Error en tarea {origen}", body)
 
 
+# ── Catch-up al arrancar ──────────────────────────────────────────────────────
+
+def _tareas_pendientes_hoy() -> tuple[bool, bool]:
+    """
+    Devuelve (ing_pendiente, gmail_pendiente).
+
+    Una tarea está "pendiente" si ya pasó su hora programada hoy en Madrid
+    y no hay entrada de ese scheduler en activity_log desde el inicio del día.
+
+    Evita perder ejecuciones cuando el contenedor se reinicia después de las 10:00.
+    """
+    from models import ActivityLog
+
+    ahora_madrid = datetime.now(MADRID)
+    inicio_dia_madrid = ahora_madrid.replace(hour=0, minute=0, second=0, microsecond=0)
+    inicio_dia_utc = inicio_dia_madrid.astimezone(pytz.UTC).replace(tzinfo=None)
+
+    hora_ing = ahora_madrid.replace(hour=10, minute=0, second=0, microsecond=0)
+    hora_gmail = ahora_madrid.replace(hour=10, minute=5, second=0, microsecond=0)
+
+    db = SessionLocal()
+    try:
+        def _ya_ejecutado(accion: str) -> bool:
+            return db.query(ActivityLog).filter(
+                ActivityLog.tipo == "scheduler",
+                ActivityLog.accion == accion,
+                ActivityLog.timestamp >= inicio_dia_utc,
+            ).first() is not None
+
+        ing_pendiente = ahora_madrid >= hora_ing and not _ya_ejecutado("ing_sync")
+        gmail_pendiente = ahora_madrid >= hora_gmail and not _ya_ejecutado("gmail_import")
+        return ing_pendiente, gmail_pendiente
+    finally:
+        db.close()
+
+
 # ── Scheduler ─────────────────────────────────────────────────────────────────
 
 def iniciar_scheduler() -> BackgroundScheduler:
@@ -243,6 +278,8 @@ def iniciar_scheduler() -> BackgroundScheduler:
         CronTrigger(hour=10, minute=0, timezone=MADRID),
         id="ing_sync",
         replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
         name="Sincronización ING diaria",
     )
 
@@ -252,9 +289,40 @@ def iniciar_scheduler() -> BackgroundScheduler:
         CronTrigger(hour=10, minute=5, timezone=MADRID),
         id="gmail_import",
         replace_existing=True,
+        misfire_grace_time=3600,
+        coalesce=True,
         name="Importación Gmail diaria",
     )
 
     scheduler.start()
     log.info("Scheduler iniciado · ING 10:00 · Gmail 10:05 · Europe/Madrid")
+
+    # Recuperación: si el contenedor arranca después de la hora programada
+    # y no hay registro del día, disparar las tareas ahora
+    try:
+        ing_pendiente, gmail_pendiente = _tareas_pendientes_hoy()
+        ahora = datetime.now(MADRID)
+        if ing_pendiente:
+            log.info("Catch-up ING: no se ejecutó hoy, lanzando en 10 s")
+            scheduler.add_job(
+                tarea_ing,
+                "date",
+                run_date=ahora + timedelta(seconds=10),
+                id="ing_sync_catchup",
+                replace_existing=True,
+                name="Catch-up ING",
+            )
+        if gmail_pendiente:
+            log.info("Catch-up Gmail: no se ejecutó hoy, lanzando en 30 s")
+            scheduler.add_job(
+                tarea_gmail,
+                "date",
+                run_date=ahora + timedelta(seconds=30),
+                id="gmail_import_catchup",
+                replace_existing=True,
+                name="Catch-up Gmail",
+            )
+    except Exception as e:
+        log.error(f"Catch-up falló, sigue con cron normal: {e}")
+
     return scheduler
